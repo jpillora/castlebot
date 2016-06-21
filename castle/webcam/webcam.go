@@ -83,7 +83,7 @@ func (w *Webcam) snap() error {
 	//compare last to current, if changed much, store both
 	if last != nil {
 		diff := abs(last.n - curr.n)
-		log.Printf("[webcam] diff: %v", diff)
+		// log.Printf("[webcam] diff: %v", diff)
 		if diff > 300 {
 			w.store(last)
 			w.store(curr)
