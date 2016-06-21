@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"time"
 
 	"github.com/jpillora/castlebot/castle"
 	"github.com/jpillora/opts"
@@ -12,10 +11,9 @@ import (
 
 //initial config
 var config = castle.Config{
-	DBLocation: "castle.db",
-	Host:       "0.0.0.0",
-	Port:       3000,
-	NoUpdates:  true,
+	SettingsLocation: "castle.db",
+	Port:             3000,
+	NoUpdates:        true,
 }
 
 var VERSION = "0.0.0-src"
@@ -29,15 +27,16 @@ func main() {
 		Parse()
 	//no overseer
 	if config.NoUpdates {
+		overseer.SanityCheck()
 		prog(overseer.DisabledState)
 		return
 	}
 	//start overseer
 	overseer.Run(overseer.Config{
 		Program: prog,
-		Fetcher: &fetcher.HTTP{
-			URL:      "http://localhost:4000/binaries/myapp",
-			Interval: 1 * time.Second,
+		Fetcher: &fetcher.Github{
+			User: "jpillora",
+			Repo: "castlebot",
 		},
 		Debug: true,
 	})

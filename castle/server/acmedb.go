@@ -1,7 +1,6 @@
-package acmedb
+package server
 
 import (
-	"log"
 	"os"
 
 	"github.com/boltdb/bolt"
@@ -9,12 +8,11 @@ import (
 
 var bucketName = []byte("amcedb")
 
-type DB struct {
+type acmeDB struct {
 	*bolt.DB
 }
 
-func (db *DB) SaveFileCallback(path string, contents []byte) error {
-	log.Printf("save %s", path)
+func (db *acmeDB) SaveFileCallback(path string, contents []byte) error {
 	return db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists(bucketName)
 		if err != nil {
@@ -24,8 +22,7 @@ func (db *DB) SaveFileCallback(path string, contents []byte) error {
 	})
 }
 
-func (db *DB) LoadFileCallback(path string) ([]byte, error) {
-	log.Printf("load %s", path)
+func (db *acmeDB) LoadFileCallback(path string) ([]byte, error) {
 	var contents []byte
 	if err := db.View(func(tx *bolt.Tx) error {
 		if b := tx.Bucket(bucketName); b != nil {
