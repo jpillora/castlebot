@@ -47,3 +47,5 @@ cb0ed7acc4f717d79a358093419e5a7da09b8b45	golang.org/x/net/publicsuffix
 40d457b439244b546f023d056628e5184136899b	gopkg.in/square/go-jose.v1
 40d457b439244b546f023d056628e5184136899b	gopkg.in/square/go-jose.v1/cipher
 40d457b439244b546f023d056628e5184136899b	gopkg.in/square/go-jose.v1/json
+72ba3e6b9e6b87e0c74c9a7a4dc86e8dd8ba4355	github.com/go-ini/ini
+0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74	github.com/jmespath/go-jmespath
