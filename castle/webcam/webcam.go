@@ -145,13 +145,11 @@ func (w *Webcam) List(ctx context.Context, writer http.ResponseWriter, r *http.R
 			return nil
 		}
 		c := b.Cursor()
-		for {
-			k, v := c.Next()
-			if v == nil {
-				break
-			}
+		k, v := c.First()
+		for k != nil && v != nil {
 			fmt.Fprintf(writer, "%s = %d\n", k, len(v))
 			n++
+			k, v = c.Next()
 		}
 		return nil
 	}); err != nil {
