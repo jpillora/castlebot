@@ -160,23 +160,45 @@ func (w *Webcam) List(ctx context.Context, writer http.ResponseWriter, r *http.R
 }
 
 func (w *Webcam) GetSnap(ctx context.Context, writer http.ResponseWriter, r *http.Request) {
-	id := pat.Param(ctx, "id")
-	var snap []byte
+	targetID := []byte(pat.Param(ctx, "id"))
 	if err := w.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 		if b == nil {
 			fmt.Fprintf(writer, "bucket missing\n")
 			return nil
 		}
-		snap = b.Get([]byte(id))
+		c := b.Cursor()
+		h := writer.Header()
+		//after last?
+		lastID, lastImg := c.Last()
+		if bytes.Compare(targetID, lastID) >= 0 {
+			h.Set("Curr", string(lastID))
+			prevID, _ := c.Prev()
+			h.Set("Prev", string(prevID))
+			http.ServeContent(writer, r, string(lastID)+".jpg", time.Now(), bytes.NewReader(lastImg))
+			return nil
+		}
+		//before first?
+		firstID, firstImg := c.First()
+		if bytes.Compare(firstID, targetID) >= 0 {
+			h.Set("Curr", string(firstID))
+			nextID, _ := c.Next()
+			h.Set("Next", string(nextID))
+			http.ServeContent(writer, r, string(firstID)+".jpg", time.Now(), bytes.NewReader(firstImg))
+			return nil
+		}
+		//middle
+		currID, currImg := c.Seek(targetID)
+		h.Set("Curr", string(currID))
+		prevID, _ := c.Prev()
+		h.Set("Prev", string(prevID))
+		c.Next()
+		nextID, _ := c.Next()
+		h.Set("Next", string(nextID))
+		http.ServeContent(writer, r, string(currID)+".jpg", time.Now(), bytes.NewReader(currImg))
 		return nil
 	}); err != nil {
 		http.Error(writer, "db view failed", http.StatusInternalServerError)
 		return
 	}
-	if len(snap) == 0 {
-		http.NotFound(writer, r)
-		return
-	}
-	http.ServeContent(writer, r, id+".jpg", time.Now(), bytes.NewReader(snap))
 }

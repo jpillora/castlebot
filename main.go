@@ -12,9 +12,9 @@ import (
 
 //initial config
 var config = castle.Config{
-	SettingsLocation: "castle.db",
-	Port:             3000,
-	NoUpdates:        os.Getenv("DEV") == "1",
+	DB:        "castle.db",
+	Port:      3000,
+	NoUpdates: os.Getenv("DEV") == "1",
 }
 
 var VERSION = "0.0.0-src"

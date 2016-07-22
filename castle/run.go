@@ -23,18 +23,18 @@ import (
 //Config defines the command-line interface, it contains just enough to access
 //the web ui to change the settings database
 type Config struct {
-	SettingsLocation string `help:"castle settings database location"`
-	Port             int    `help:"http listening port, used when not found in settings"`
-	NoUpdates        bool   `help:"disable automatic updates"`
+	DB        string `help:"castle settings database location"`
+	Port      int    `help:"http listening port, used when not found in settings"`
+	NoUpdates bool   `help:"disable automatic updates"`
 }
 
 func Run(version string, config Config, state overseer.State) error {
 	//validate config
-	if config.SettingsLocation == "" {
+	if config.DB == "" {
 		return errors.New("database location is required")
 	}
 	//setup database
-	db, err := bolt.Open(config.SettingsLocation, 0600, nil)
+	db, err := bolt.Open(config.DB, 0600, nil)
 	if err != nil {
 		return err
 	}
