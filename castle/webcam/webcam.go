@@ -1,12 +1,15 @@
 package webcam
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
+
+	"goji.io/pat"
 
 	"golang.org/x/net/context"
 
@@ -108,7 +111,7 @@ func (w *Webcam) store(s *snap) {
 		log.Printf("[webcam] db write failed: %s", err)
 		return
 	}
-	log.Printf("[webcam] wrote snap")
+	log.Printf("[webcam] wrote snap %s", s.id)
 	s.stored = true
 }
 
@@ -156,4 +159,26 @@ func (w *Webcam) List(ctx context.Context, writer http.ResponseWriter, r *http.R
 		return
 	}
 	fmt.Fprintf(writer, "done (#%d)\n", n)
+}
+
+func (w *Webcam) GetSnap(ctx context.Context, writer http.ResponseWriter, r *http.Request) {
+	id := pat.Param(ctx, "id")
+	var snap []byte
+	if err := w.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketName)
+		if b == nil {
+			fmt.Fprintf(writer, "bucket missing\n")
+			return nil
+		}
+		snap = b.Get([]byte(id))
+		return nil
+	}); err != nil {
+		http.Error(writer, "db view failed", http.StatusInternalServerError)
+		return
+	}
+	if len(snap) == 0 {
+		http.NotFound(writer, r)
+		return
+	}
+	http.ServeContent(writer, r, id+".jpg", time.Now(), bytes.NewReader(snap))
 }

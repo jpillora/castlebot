@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/jpillora/castlebot/castle"
 	"github.com/jpillora/opts"
@@ -13,7 +14,7 @@ import (
 var config = castle.Config{
 	SettingsLocation: "castle.db",
 	Port:             3000,
-	NoUpdates:        true,
+	NoUpdates:        os.Getenv("DEV") == "1",
 }
 
 var VERSION = "0.0.0-src"
