@@ -108,6 +108,7 @@ func (w *Webcam) store(s *snap) {
 		log.Printf("[webcam] db write failed: %s", err)
 		return
 	}
+	log.Printf("[webcam] wrote snap")
 	s.stored = true
 }
 
