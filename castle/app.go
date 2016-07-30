@@ -15,6 +15,7 @@ import (
 	"github.com/jpillora/castlebot/castle/static"
 	"github.com/jpillora/castlebot/castle/webcam"
 	"github.com/jpillora/overseer"
+	"github.com/jpillora/requestlog"
 	"github.com/jpillora/velox"
 	"github.com/zenazn/goji/web/middleware"
 )
@@ -47,7 +48,7 @@ func Run(version string, config Config, state overseer.State) error {
 	serv := server.New(db, router, config.Port)
 	//setup routes
 	router.Use(middleware.RealIP)
-	// router.Use(requestlog.Wrap)
+	router.Use(requestlog.Wrap)
 	router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			//tls hostname check

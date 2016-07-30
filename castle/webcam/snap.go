@@ -70,7 +70,7 @@ func newSnap(raw []byte, threshold int, last *snap) (*snap, error) {
 			log.Printf("jpgencode: %s", err)
 		} else {
 			s.diff = buff.Bytes()
-			log.Printf("sum: %d (num: %d, avg: %f)", s.pdiffSum, s.pdiffNum, float64(s.pdiffSum)/float64(b.Max.X*b.Max.Y))
+			// log.Printf("sum: %d (num: %d, avg: %f)", s.pdiffSum, s.pdiffNum, float64(s.pdiffSum)/float64(b.Max.X*b.Max.Y))
 		}
 	}
 	return s, nil
