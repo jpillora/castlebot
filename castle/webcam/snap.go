@@ -4,59 +4,74 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"log"
 	"time"
 
-	_ "image/jpeg"
+	"image/color"
+	"image/jpeg"
+)
 
-	"github.com/disintegration/gift"
+var (
+	black = &color.RGBA{R: 0, G: 0, B: 0, A: 0xff}
+	cyan  = &color.RGBA{R: 0, G: 0xff, B: 0xff, A: 0xff}
+	pink  = &color.RGBA{R: 0xff, G: 0, B: 0xe0, A: 0xff}
+	white = &color.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}
 )
 
 type snap struct {
-	id                           string
-	n                            int
-	avg, min, max, diff, diffsum float64
-	changing, newState           bool
-	t                            time.Time
-	prev                         *snap
-	raw                          []byte
-	processed                    image.Image
-	stored                       bool
+	id       []byte
+	t        time.Time
+	prev     *snap
+	raw      []byte
+	img      image.Image
+	diff     []byte
+	pdiffSum int
+	pdiffNum int
+	stored   bool
 }
 
-func newSnap(raw []byte) (*snap, error) {
+func newSnap(raw []byte, threshold int, last *snap) (*snap, error) {
 	s := &snap{}
 	s.t = time.Now()
-	s.id = s.t.UTC().Format(time.RFC3339)
+	s.id = toID(s.t)
 	s.raw = raw
-	src, _, err := image.Decode(bytes.NewReader(raw))
+	img, _, err := image.Decode(bytes.NewReader(raw))
 	if err != nil {
 		return nil, fmt.Errorf("jpg: %s", err)
 	}
-	processor := gift.New(
-		gift.Sobel(),
-		gift.Grayscale(),
-	)
-	processor.Options = gift.Options{Parallelization: true}
-	dst := image.NewRGBA(processor.Bounds(src.Bounds()))
-	processor.Draw(dst, src)
-	//done
-	s.processed = dst
-	//count white in processed
-	s.n = s.countWhite()
-	return s, nil
-}
+	s.img = img
+	b := s.img.Bounds()
+	if last != nil && b.Eq(last.img.Bounds()) {
+		d := image.NewNRGBA(b)
+		for y := b.Min.Y; y < b.Max.Y; y++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
+				r1, g1, b1, _ := s.img.At(x, y).RGBA()
+				r2, g2, b2, _ := last.img.At(x, y).RGBA()
 
-func (s *snap) countWhite() int {
-	//n is the number of pure white pixels
-	n := 0
-	bounds := s.processed.Bounds()
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, _ := s.processed.At(x, y).RGBA()
-			if r == 0xffff && g == 0xffff && b == 0xffff {
-				n++
+				pdiff := abs(int(r2)-int(r1)) +
+					abs(int(g2)-int(g1)) +
+					abs(int(b2)-int(b1))
+
+				s.pdiffSum += pdiff
+				if pdiff > threshold {
+					if r1+g1+b1 > r2+g2+b2 {
+						d.Set(x, y, pink)
+					} else {
+						d.Set(x, y, cyan)
+					}
+					s.pdiffNum++
+				} else {
+					d.Set(x, y, black)
+				}
 			}
 		}
+		buff := bytes.Buffer{}
+		if err := jpeg.Encode(&buff, d, nil); err != nil {
+			log.Printf("jpgencode: %s", err)
+		} else {
+			s.diff = buff.Bytes()
+			log.Printf("sum: %d (num: %d, avg: %f)", s.pdiffSum, s.pdiffNum, float64(s.pdiffSum)/float64(b.Max.X*b.Max.Y))
+		}
 	}
-	return n
+	return s, nil
 }

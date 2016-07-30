@@ -7,9 +7,11 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"goji.io/pat"
+	"goji.io/pattern"
 
 	"golang.org/x/net/context"
 
@@ -23,7 +25,8 @@ func New(db *bolt.DB) *Webcam {
 	w.timer = time.NewTimer(time.Duration(0))
 	w.timer.Stop()
 	w.snaps = []*snap{}
-	w.Config.Interval = 15
+	w.Config.Interval = 1
+	w.Config.Threshold = 4000
 	go w.check()
 	return w
 }
@@ -36,6 +39,7 @@ type Webcam struct {
 		StoredBytes int64  `json:"storedBytes"`
 		ImageURL    string `json:"imageUrl"`
 		Interval    int    `json:"interval"`
+		Threshold   int    `json:"threshold"`
 	}
 }
 
@@ -68,15 +72,16 @@ func (w *Webcam) snap() error {
 	if err != nil {
 		return fmt.Errorf("download: %s", err)
 	}
-	//create snap
-	curr, err := newSnap(b)
-	if err != nil {
-		return err
-	}
+	//find last
 	l := len(w.snaps)
 	var last *snap
 	if l > 0 {
 		last = w.snaps[l-1]
+	}
+	//create snap
+	curr, err := newSnap(b, w.Config.Threshold, last)
+	if err != nil {
+		return err
 	}
 	//store last 100 snaps
 	w.snaps = append(w.snaps, curr)
@@ -84,13 +89,8 @@ func (w *Webcam) snap() error {
 		w.snaps = w.snaps[1:]
 	}
 	//compare last to current, if changed much, store both
-	if last != nil {
-		diff := abs(last.n - curr.n)
-		// log.Printf("[webcam] diff: %v", diff)
-		if diff > 300 {
-			w.store(last)
-			w.store(curr)
-		}
+	if curr.pdiffNum > 4000 {
+		w.store(curr)
 	}
 	return nil
 }
@@ -136,46 +136,78 @@ func (w *Webcam) Set(j json.RawMessage) error {
 	return nil
 }
 
-func (w *Webcam) List(ctx context.Context, writer http.ResponseWriter, r *http.Request) {
+func (wc *Webcam) List(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	n := 0
-	if err := w.db.View(func(tx *bolt.Tx) error {
+	if err := wc.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 		if b == nil {
-			fmt.Fprintf(writer, "bucket missing\n")
+			fmt.Fprintf(w, "bucket missing\n")
 			return nil
 		}
 		c := b.Cursor()
 		k, v := c.First()
 		for k != nil && v != nil {
-			fmt.Fprintf(writer, "%s = %d\n", k, len(v))
+			fmt.Fprintf(w, "%s = %d\n", k, len(v))
 			n++
 			k, v = c.Next()
 		}
 		return nil
 	}); err != nil {
-		http.Error(writer, "db view failed", http.StatusInternalServerError)
+		http.Error(w, "db view failed", http.StatusInternalServerError)
 		return
 	}
-	fmt.Fprintf(writer, "done (#%d)\n", n)
+	fmt.Fprintf(w, "done (#%d)\n", n)
 }
 
-func (w *Webcam) GetSnap(ctx context.Context, writer http.ResponseWriter, r *http.Request) {
+func (wc *Webcam) GetLive(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	i, err := strconv.Atoi(pat.Param(ctx, "index"))
+	if err != nil {
+		http.Error(w, "index must be an integer", http.StatusBadRequest)
+		return
+	}
+	if i < 0 || i > len(wc.snaps) {
+		http.Error(w, "index out of range", http.StatusBadRequest)
+		return
+	}
+	//reverse index order
+	s := wc.snaps[len(wc.snaps)-1-i]
+	w.Header().Set("Interval", strconv.Itoa(wc.Config.Interval))
+	//find image
+	var b []byte
+
+	snaptype := ""
+	if v := ctx.Value(pattern.Variable("type")); v != nil {
+		if t, ok := v.(string); ok {
+			snaptype = t
+		}
+	}
+	switch snaptype {
+	case "diff":
+		b = s.diff
+	default:
+		b = s.raw
+	}
+	//serve
+	http.ServeContent(w, r, string(s.id)+".jpg", s.t, bytes.NewReader(b))
+}
+
+func (wc *Webcam) GetHistorical(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	targetID := []byte(pat.Param(ctx, "id"))
-	if err := w.db.View(func(tx *bolt.Tx) error {
+	if err := wc.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 		if b == nil {
-			fmt.Fprintf(writer, "bucket missing\n")
+			fmt.Fprintf(w, "bucket missing\n")
 			return nil
 		}
 		c := b.Cursor()
-		h := writer.Header()
+		h := w.Header()
 		//after last?
 		lastID, lastImg := c.Last()
 		if bytes.Compare(targetID, lastID) >= 0 {
 			h.Set("Curr", string(lastID))
 			prevID, _ := c.Prev()
 			h.Set("Prev", string(prevID))
-			http.ServeContent(writer, r, string(lastID)+".jpg", time.Now(), bytes.NewReader(lastImg))
+			http.ServeContent(w, r, string(lastID)+".jpg", fromID(lastID), bytes.NewReader(lastImg))
 			return nil
 		}
 		//before first?
@@ -184,7 +216,7 @@ func (w *Webcam) GetSnap(ctx context.Context, writer http.ResponseWriter, r *htt
 			h.Set("Curr", string(firstID))
 			nextID, _ := c.Next()
 			h.Set("Next", string(nextID))
-			http.ServeContent(writer, r, string(firstID)+".jpg", time.Now(), bytes.NewReader(firstImg))
+			http.ServeContent(w, r, string(firstID)+".jpg", fromID(firstID), bytes.NewReader(firstImg))
 			return nil
 		}
 		//middle
@@ -195,10 +227,19 @@ func (w *Webcam) GetSnap(ctx context.Context, writer http.ResponseWriter, r *htt
 		c.Next()
 		nextID, _ := c.Next()
 		h.Set("Next", string(nextID))
-		http.ServeContent(writer, r, string(currID)+".jpg", time.Now(), bytes.NewReader(currImg))
+		http.ServeContent(w, r, string(currID)+".jpg", fromID(currID), bytes.NewReader(currImg))
 		return nil
 	}); err != nil {
-		http.Error(writer, "db view failed", http.StatusInternalServerError)
+		http.Error(w, "db view failed", http.StatusInternalServerError)
 		return
 	}
+}
+
+func toID(t time.Time) []byte {
+	return []byte(t.UTC().Format(time.RFC3339))
+}
+
+func fromID(id []byte) time.Time {
+	t, _ := time.Parse(time.RFC3339, string(id))
+	return t
 }

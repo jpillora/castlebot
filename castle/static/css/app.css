@@ -1,0 +1,32 @@
+
+select {
+   -webkit-appearance: none;
+   -moz-appearance: none;
+   appearance: none;
+}
+
+.datepicker {
+    margin-top: 10px;
+    width: 100%;
+}
+
+.image-container {
+    position: relative;
+}
+
+.image-container .arrow {
+    cursor: pointer;
+    position: absolute;
+    top: 45%;
+    background: hsla(0, 0%, 100%, 0.42);
+    padding: 0.8em;
+    border-radius: 5px;
+}
+
+.image-container .arrow.left {
+    left: 10px;
+}
+
+.image-container .arrow.right {
+    right: 10px;
+}

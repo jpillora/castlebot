@@ -1,12 +1,146 @@
 <!DOCTYPE html>
-<html>
+<html ng-app="castle" ng-controller="AppController as app">
 	<head>
 		<meta charset="utf-8">
-		<title>Castle</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+		<link rel="icon" type="image/x-icon" href="css/castle.png">
+		<link rel="stylesheet" href="css/semantic.min.css">
+		<link rel="stylesheet" href="css/app.css">
+		<title ng-bind="app.data.title || 'Castlebot'">Castlebot</title>
 	</head>
 	<body>
+		<div class="ui menu">
+			<div class="ui container">
+				<a href="https://github.com/jpillora/castlebot" class="header item">
+					<i class="fort awesome icon"></i>
+					<span ng-bind="app.data.title || 'Castlebot'">Castlebot</span>
+				</a>
+				<!-- <span class="item">{{ app.data.version }}</span> -->
+				<div class="right menu">
+					<a class="item" ng-click="app.config = !app.config">
+						<i class="settings icon" ng-class="{blue:app.config}"></i>
+					</a>
+					<span class="item">
+						<i class="lightning icon" ng-class="app.connected ? 'green' : 'red'"></i>
+					</span>
+				</div>
+			</div>
+		</div>
+		<div class="ui container">
+			<div class="ui stackable app grid">
+				<div class="ten wide column">
+					<!-- ====== WEB CAM SEGMENT ======= -->
+					<div class="ui segment" ng-controller="CamController as cam">
+						<div class="ui top attached label">
+							<span>{{ cam.title }}</span>
+							<span style="float:right;">{{ cam.timestamp }}</span>
+						</div>
+						<div class="image-container">
+							<img class="ui fluid rounded bordered image" blob-src="cam.blob">
+							<div class="left arrow" ng-show="cam.prevSnap" ng-click="cam.refresh(cam.prevSnap)">
+								<i class="icon left chevron"></i>
+							</div>
+							<div class="right arrow" ng-show="cam.nextSnap" ng-click="cam.refresh(cam.nextSnap)">
+								<i class="icon right chevron"></i>
+							</div>
+						</div>
+						<div>
+							<input class="datepicker" ng-model="cam.timeIndex" type="range" min="0" max="1000">
+							<div style="text-align:center;">
+								{{ cam.timeSlider }}
+							</div>
+						</div>
+						<div class="ui form">
+							<div class="two fields">
+								<div class="field">
+									<label>Mode</label>
+									<select ng-model="cam.viewMode">
+										<option value="diff">Difference</option>
+										<option value="raw">Raw image</option>
+									</select>
+								</div>
+								<div class="field">
+									<label>Range</label>
+									<select ng-model="cam.range">
+										<option value="hour">Hour</option>
+										<option value="day">Day</option>
+										<option value="month">Month</option>
+										<option value="year">Year</option>
+									</select>
+								</div>
+							</div>
+						</div>
+						<div class="ui form" ng-if="app.config">
+							<div class="two fields">
+								<div class="field">
+									<label>Threshold</label>
+									<input type="number" ng-model="data.settings.webcam.threshold">
+								</div>
+								<div class="field">
+									<label>Interval</label>
+									<input type="number" ng-model="data.settings.webcam.interval">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="six wide column">
+					<!-- ====== GATE BUTTON SEGMENT ======= -->
+					<div class="ui segment" ng-controller="GateBtnController as gb">
+						<div class="ui top attached label">Gate</div>
+						<div class="ui center aligned basic segment">
+							<button class="massive ui button"
+								ng-disabled="gb.toggling"
+								ng-class="{loading: gb.toggling, green: gb.toggled, red: gb.error}"
+								ng-click="gb.toggle()">
+								<i class="lightning icon"></i>Toggle
+							</button>
+							<div class="ui error message" ng-if="gb.error">
+								{{ gb.error }}
+							</div>
+						</div>
+					</div>
+					<!-- ====== INFO SEGMENT ======= -->
+					<div class="ui segment">
+						<div class="ui top attached label">Information</div>
+						<div class="ui grid">
+							<div class="right aligned eight wide column">
+								<b>Version</b>
+							</div>
+							<div class="eight wide column">
+								{{ app.data.version }}
+							</div>
+							<div class="right aligned eight wide column">
+								<b>Go</b>
+							</div>
+							<div class="eight wide column">
+								{{ app.data.goVersion }}
+							</div>
+						</div>
+					</div>
+					<!-- ====== SERVER CONFIG SEGMENT ======= -->
+					<div class="ui segment" ng-if="app.config">
+						<div class="ui top attached label">Server</div>
+						<form class="ui form">
+							<div class="field">
+								<label>Username</label>
+								<input type="text" ng-model="inputs.App.User"></input>
+							</div>
+							<div class="field">
+								<label>Password</label>
+								<input type="password" ng-model="inputs.App.Pass"></input>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<script src="/js/moment.js"></script>
+		<script src="/js/fetch.js"></script>
+		<script src="/js/angular.min.js"></script>
 		<script src="/js/velox.js"></script>
 		<script src="/js/app.js"></script>
-		<pre id="preview"></pre>
+		<!-- <pre id="preview"></pre> -->
 	</body>
 </html>

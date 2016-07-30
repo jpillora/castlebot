@@ -45,13 +45,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	//actuate
-	pin := rpio.Pin(p)
-	pin.Output()
-	pin.High()
-	time.Sleep(d)
-	pin.Low()
+	go func() {
+		pin := rpio.Pin(p)
+		pin.Output()
+		pin.High()
+		time.Sleep(d)
+		pin.Low()
+		log.Printf("activated pin %d for %s\n", p, d)
+	}()
 	//done
 	w.WriteHeader(200)
-	log.Printf("activated pin %d for %s\n", p, d)
-	fmt.Fprintf(w, "activated pin %d for %s\n", p, d)
+	fmt.Fprintf(w, "activating pin %d for %s\n", p, d)
 }
