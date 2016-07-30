@@ -139,12 +139,14 @@ module.directive('blobSrc', function() {
 module.controller('GateBtnController', function($scope, $http, $timeout) {
   var gb = window.gb = $scope.gb = this;
   gb.toggle = function() {
+    if(gb.toggling || gb.toggled)
+      return;
     gb.error = null;
     gb.toggling = true;
     $http({
       method: "GET",
       url: "/gpio",
-      query: {p:17, d:"1sec"}
+      query: {p:23, d:"1000ms"}
     }).then(function() {
       gb.toggled = true;
       $timeout(function() {

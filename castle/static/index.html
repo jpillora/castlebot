@@ -91,7 +91,7 @@
 						<div class="ui top attached label">Gate</div>
 						<div class="ui center aligned basic segment">
 							<button class="massive ui button"
-								ng-disabled="gb.toggling"
+								ng-disabled="gb.toggling || gb.toggled"
 								ng-class="{loading: gb.toggling, green: gb.toggled, red: gb.error}"
 								ng-click="gb.toggle()">
 								<i class="lightning icon"></i>Toggle
