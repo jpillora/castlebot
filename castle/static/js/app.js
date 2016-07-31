@@ -146,7 +146,7 @@ module.controller('GateBtnController', function($scope, $http, $timeout) {
     $http({
       method: "GET",
       url: "/gpio",
-      query: {p:23, d:"1000ms"}
+      params: {p:23, d:"1000ms"}
     }).then(function() {
       gb.toggled = true;
       $timeout(function() {
