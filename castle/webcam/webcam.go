@@ -89,9 +89,10 @@ func (w *Webcam) snap() error {
 		w.snaps = w.snaps[1:]
 	}
 	//compare last to current, if changed much, store both
-	if curr.pdiffNum > 4000 {
-		w.store(curr)
-	}
+	//TODO restore
+	// if curr.pdiffNum > 4000 {
+	// 	w.store(curr)
+	// }
 	return nil
 }
 
