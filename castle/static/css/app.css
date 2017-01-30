@@ -10,6 +10,13 @@ select {
     width: 100%;
 }
 
+.ui.menu {
+    border-top: none;
+    border-right: none;
+    border-left: none;
+    border-radius: 0;
+}
+
 .image-container {
     position: relative;
 }
@@ -29,4 +36,16 @@ select {
 
 .image-container .arrow.right {
     right: 10px;
+}
+
+.float-right {
+    float: right;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.b-r {
+    border-right: 1px solid rgba(34,36,38,.1);
 }

@@ -20,6 +20,7 @@ var config = castle.Config{
 var VERSION = "0.0.0-src"
 
 func main() {
+	overseer.SanityCheck()
 	//parse config
 	opts.New(&config).
 		Name("castle").
@@ -28,7 +29,6 @@ func main() {
 		Parse()
 	//no overseer
 	if config.NoUpdates {
-		overseer.SanityCheck()
 		prog(overseer.DisabledState)
 		return
 	}

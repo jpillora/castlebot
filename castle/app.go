@@ -2,18 +2,22 @@ package castle
 
 import (
 	"errors"
+	"log"
 	"net/http"
+	"runtime"
+	"sync"
 
 	"goji.io/pat"
 
 	"goji.io"
 
 	"github.com/boltdb/bolt"
-	"github.com/jpillora/castlebot/castle/gpio"
-	"github.com/jpillora/castlebot/castle/server"
-	"github.com/jpillora/castlebot/castle/settings"
+	"github.com/jpillora/castlebot/castle/modules"
+	"github.com/jpillora/castlebot/castle/modules/gpio"
+	"github.com/jpillora/castlebot/castle/modules/scanner"
+	"github.com/jpillora/castlebot/castle/modules/server"
+	"github.com/jpillora/castlebot/castle/modules/webcam"
 	"github.com/jpillora/castlebot/castle/static"
-	"github.com/jpillora/castlebot/castle/webcam"
 	"github.com/jpillora/overseer"
 	"github.com/jpillora/requestlog"
 	"github.com/jpillora/velox"
@@ -34,19 +38,34 @@ func Run(version string, config Config, state overseer.State) error {
 		return errors.New("database location is required")
 	}
 	//setup database
+	log.Printf("Open database %s", config.DB)
 	db, err := bolt.Open(config.DB, 0600, nil)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
-	//settings
-	set := settings.New(version, db)
-	//webcam
-	wc := webcam.New(db)
-	//http
+	//velox state
+	data := struct {
+		velox.State
+		sync.Mutex
+		Version   string      `json:"version"`
+		GoVersion string      `json:"goVersion"`
+		Modules   interface{} `json:"modules"`
+	}{
+		Version:   version,
+		GoVersion: runtime.Version(),
+	}
+	//root router
 	router := goji.NewMux()
+	//initialise module container
+	m := modules.New(db, router, velox.Pusher(&data))
+	data.Modules = m.JSON()
+	//initialise modules
+	g := gpio.New()
+	sc := scanner.New()
 	serv := server.New(db, router, config.Port)
-	//setup routes
+	wc := webcam.New(db)
+	//setup middleware
 	router.Use(middleware.RealIP)
 	router.Use(requestlog.Wrap)
 	router.Use(func(next http.Handler) http.Handler {
@@ -59,18 +78,15 @@ func Run(version string, config Config, state overseer.State) error {
 			next.ServeHTTP(w, r)
 		})
 	})
-	router.Handle(pat.Get("/sync"), velox.SyncHandler(&set.Data))
-	router.Handle(pat.Get("/js/velox.js"), velox.JS)
-	router.Handle(pat.Get("/gpio"), gpio.New())
-	router.HandleC(pat.Put("/settings/:id"), goji.HandlerFunc(set.Update))
-	router.HandleC(pat.Get("/webcam/snaps"), goji.HandlerFunc(wc.List))
-	router.HandleC(pat.Get("/webcam/snap/:id"), goji.HandlerFunc(wc.GetHistorical))
-	router.HandleC(pat.Get("/webcam/live/:index/:type"), goji.HandlerFunc(wc.GetLive))
-	router.HandleC(pat.Get("/webcam/live/:index"), goji.HandlerFunc(wc.GetLive))
-	router.Handle(pat.New("/*"), static.Handler())
 	//register all modules
-	set.Register("server", serv)
-	set.Register("webcam", wc)
+	m.Register(g)
+	m.Register(sc)
+	m.Register(serv)
+	m.Register(wc)
+	//setup velox/static file routes
+	router.Handle(pat.Get("/sync"), velox.SyncHandler(&data))
+	router.Handle(pat.Get("/js/velox.js"), velox.JS)
+	router.Handle(pat.New("/*"), static.Handler())
 	//wait till closed
 	return serv.Wait()
 }
