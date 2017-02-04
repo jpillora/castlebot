@@ -41,10 +41,10 @@
 							Scanned <span since="scanner.data.status.scannedAt" ago>-</span>
 						</span>
 					</div>
-					<table class="ui table">
+					<table class="ui unstackable table">
 						<thead>
 							<tr>
-								<th>Status</th>
+								<!--<th>Status</th>-->
 								<th>IP</th>
 								<th>Hostname</th>
 								<th>RTT</th>
@@ -55,12 +55,12 @@
 							<tr ng-if="!hasKeys(scanner.data.status.hosts)">
 								<td colspan="100%">No hosts found</td>
 							</tr>
-							<tr ng-repeat="h in scanner.data.status.hosts" ng-class="hostClass(h)" ng-if="h.active || h.error">
-								<td class="status">
+							<tr ng-repeat="h in scanner.data.status.hosts" ng-class="hostClass(h)" ng-if="h.seenAt !== '0001-01-01T00:00:00Z' || h.active || h.error">
+								<!--<td class="status">
 									<i ng-if="h.active" class="green check icon"></i>
 									<i ng-if="!h.active" class="red remove icon"></i>
 									<i ng-if="h.error" class="red ban icon"></i>
-								</td>
+								</td>-->
 								<td>{{ h.ip }}</td>
 								<td>{{ h.hostname || '-' }}</td>
 								<td>{{ h.rtt ? nano(h.rtt) : '-' }}</td>

@@ -20,7 +20,7 @@ func New() *Scanner {
 	s.timer = time.NewTimer(time.Duration(0))
 	s.timer.Stop()
 	s.settings.Enabled = true
-	s.settings.Interval = 5 * time.Minute
+	s.settings.Interval = 2 * time.Minute
 	s.results.Hosts = map[string]host{}
 	go s.check()
 	return s
@@ -72,13 +72,27 @@ func (sc *Scanner) scan() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("found hosts %d", len(hosts))
 	now := time.Now()
-	for _, icmpHost := range hosts {
-		ip := icmpHost.IP.String()
-		h := sc.results.Hosts[ip]
-		h.Host = icmpHost
-		h.SeenAt = now
+	for _, ih := range hosts {
+		ip := ih.IP.String()
+		h, ok := sc.results.Hosts[ip]
+		if !ok {
+			h.Host = ih
+		}
+		h.Active = ih.Active
+		if ih.Active {
+			if h.SeenAt.IsZero() {
+				log.Printf("[scanner] found host: %s", ih.IP)
+			}
+			h.SeenAt = now
+			h.Error = ih.Error
+		}
+		if ih.Hostname != "" {
+			h.Hostname = ih.Hostname
+		}
+		if ih.RTT > 0 {
+			h.RTT = ih.RTT
+		}
 		sc.results.Hosts[ip] = h
 	}
 	sc.results.ScannedAt = now
