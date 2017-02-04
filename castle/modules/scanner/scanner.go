@@ -12,7 +12,8 @@ import (
 
 type host struct {
 	*icmpscan.Host
-	SeenAt time.Time `json:"seenAt"`
+	SeenAt   time.Time `json:"seenAt"`
+	ActiveAt time.Time `json:"activeAt"`
 }
 
 func New() *Scanner {
@@ -21,6 +22,7 @@ func New() *Scanner {
 	s.timer.Stop()
 	s.settings.Enabled = true
 	s.settings.Interval = 2 * time.Minute
+	s.settings.ActiveAtThreshold = 15 * time.Minute
 	s.results.Hosts = map[string]host{}
 	go s.check()
 	return s
@@ -30,11 +32,13 @@ type Scanner struct {
 	updates  chan interface{}
 	timer    *time.Timer
 	settings struct {
-		Enabled  bool
-		Interval time.Duration
+		Enabled           bool
+		Interval          time.Duration
+		ActiveAtThreshold time.Duration
 	}
 	results struct {
 		sync.Mutex
+		Scanning  bool            `json:"scanning"`
 		ScannedAt time.Time       `json:"scannedAt"`
 		Hosts     map[string]host `json:"hosts"`
 	}
@@ -65,7 +69,16 @@ func (sc *Scanner) scan() error {
 	if !sc.settings.Enabled {
 		return nil
 	}
+	//show scan state
+	sc.results.Scanning = true
+	sc.push()
+	defer func() {
+		sc.results.Scanning = false
+		sc.push()
+	}()
+	//perform scan
 	hosts, err := icmpscan.Run(icmpscan.Spec{
+		MACs:      true,
 		Hostnames: true,
 		Timeout:   5 * time.Second,
 	})
@@ -79,16 +92,18 @@ func (sc *Scanner) scan() error {
 		if !ok {
 			h.Host = ih
 		}
-		h.Active = ih.Active
-		if ih.Active {
-			if h.SeenAt.IsZero() {
-				log.Printf("[scanner] found host: %s", ih.IP)
-			}
-			h.SeenAt = now
-			h.Error = ih.Error
+		if h.SeenAt.IsZero() {
+			log.Printf("[scanner] found host: %s", ih.IP)
 		}
+		if now.Sub(h.SeenAt) > sc.settings.ActiveAtThreshold {
+			h.ActiveAt = now
+		}
+		h.SeenAt = now
 		if ih.Hostname != "" {
 			h.Hostname = ih.Hostname
+		}
+		if ih.MAC != "" {
+			h.MAC = ih.MAC
 		}
 		if ih.RTT > 0 {
 			h.RTT = ih.RTT
@@ -96,12 +111,16 @@ func (sc *Scanner) scan() error {
 		sc.results.Hosts[ip] = h
 	}
 	sc.results.ScannedAt = now
-	sc.updates <- &sc.results
+	sc.push()
 	return nil
 }
 
 func (sc *Scanner) Status(updates chan interface{}) {
 	sc.updates = updates
+}
+
+func (sc *Scanner) push() {
+	sc.updates <- &sc.results
 }
 
 func (sc *Scanner) Get() interface{} {

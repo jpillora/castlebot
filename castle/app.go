@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"runtime"
 	"sync"
+	"time"
 
 	"goji.io/pat"
 
@@ -65,6 +66,8 @@ func Run(version string, config Config, state overseer.State) error {
 	sc := scanner.New()
 	serv := server.New(db, router, config.Port)
 	wc := webcam.New(db)
+	//HACK: let goroutines kick in
+	time.Sleep(50 * time.Millisecond)
 	//setup middleware
 	router.Use(middleware.RealIP)
 	router.Use(requestlog.Wrap)

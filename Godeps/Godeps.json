@@ -162,13 +162,17 @@
 			"Rev": "7e36a06e08cc6f803f6f0cc6a1f5f99ef571d1e4"
 		},
 		{
+			"ImportPath": "github.com/jpillora/arp",
+			"Rev": "96a8ba0be1a45cd8982a8ae340a4da23463fa220"
+		},
+		{
 			"ImportPath": "github.com/jpillora/backoff",
 			"Rev": "a6f64285fd4072883335339357436b78d62c96a4"
 		},
 		{
 			"ImportPath": "github.com/jpillora/icmpscan",
-			"Comment": "1.1.0-2-g2abd1ec",
-			"Rev": "2abd1ec3638acd12cab7dab531ed702adace8b61"
+			"Comment": "1.2.0",
+			"Rev": "237d55c537f627d1d8a6f9fbbc3aefd896dd1346"
 		},
 		{
 			"ImportPath": "github.com/jpillora/ipmath",
