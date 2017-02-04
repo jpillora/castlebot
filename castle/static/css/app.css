@@ -54,6 +54,10 @@ select {
     padding: 0;
 }
 
+.scanner.segment .status{
+    text-align: center;
+}
+
 .scanner.segment .table {
     border: none;
 }

@@ -32,32 +32,41 @@
 	</div>
 	<div class="ui container">
 		<div class="ui stackable app grid">
-			<div class="ten wide column">
+			<div class="twelve wide column">
 				<!-- ====== SCANNER SEGMENT ======= -->
 				<div class="ui scanner segment" ng-if="true || app.config || settings.scanner.enabled" ng-controller="ScannerController as scanner">
 					<div class="ui top attached label">
 						<span>Scanner</span>
-						<!--<span class="float-right">{{ cam.timestamp }}</span>-->
+						<span class="float-right">
+							Scanned <span since="scanner.data.status.scannedAt" ago>-</span>
+						</span>
 					</div>
 					<table class="ui table">
 						<thead>
 							<tr>
-								<th>Active</th>
+								<th>Status</th>
 								<th>IP</th>
+								<th>Hostname</th>
 								<th>RTT</th>
+								<th>Seen</th>
 							</tr>
 						</thead>
 						<tbody>
-							<tr ng-hide="scanner.data.status.hosts.length > 0">
+							<tr ng-hide="hasKeys(scanner.data.status.hosts)">
 								<td colspan="100%">No hosts found</td>
 							</tr>
-							<tr ng-repeat="h in scanner.data.status.hosts">
-								<td>
+							<tr ng-repeat="h in scanner.data.status.hosts" ng-class="hostClass(h)" ng-if="h.active || h.error">
+								<td class="status">
 									<i ng-if="h.active" class="green check icon"></i>
 									<i ng-if="!h.active" class="red remove icon"></i>
+									<i ng-if="h.error" class="red ban icon"></i>
 								</td>
 								<td>{{ h.ip }}</td>
-								<td>{{ nano(h.rtt) }}</td>
+								<td>{{ h.hostname || '-' }}</td>
+								<td>{{ h.rtt ? nano(h.rtt) : '-' }}</td>
+								<td>
+									<span since="h.seenAt" ago></span>
+								</td>
 							</tr>
 						</tbody>
 					</table>
@@ -116,7 +125,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="six wide column">
+			<div class="four wide column">
 				<!-- ====== GATE BUTTON SEGMENT ======= -->
 				<div class="ui segment" ng-if="app.config || settings.gpio.enabled" ng-controller="GPIOController as g">
 					<div class="ui top attached label">Gate</div>

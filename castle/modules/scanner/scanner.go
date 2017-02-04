@@ -10,12 +10,18 @@ import (
 	"github.com/jpillora/icmpscan"
 )
 
+type host struct {
+	*icmpscan.Host
+	SeenAt time.Time `json:"seenAt"`
+}
+
 func New() *Scanner {
 	s := &Scanner{}
 	s.timer = time.NewTimer(time.Duration(0))
 	s.timer.Stop()
 	s.settings.Enabled = true
 	s.settings.Interval = 5 * time.Minute
+	s.results.Hosts = map[string]host{}
 	go s.check()
 	return s
 }
@@ -29,7 +35,8 @@ type Scanner struct {
 	}
 	results struct {
 		sync.Mutex
-		Hosts icmpscan.Hosts `json:"hosts"`
+		ScannedAt time.Time       `json:"scannedAt"`
+		Hosts     map[string]host `json:"hosts"`
 	}
 }
 
@@ -41,6 +48,7 @@ func (sc *Scanner) check() {
 	b := backoff.Backoff{Max: 5 * time.Minute}
 	for {
 		//wait here for <interval>
+		//short-circuited by Set()
 		sc.timer.Reset(sc.settings.Interval)
 		<-sc.timer.C
 		//scan!
@@ -57,13 +65,23 @@ func (sc *Scanner) scan() error {
 	if !sc.settings.Enabled {
 		return nil
 	}
-	log.Printf("scan hosts")
-	hosts, err := icmpscan.Run(icmpscan.Spec{})
+	hosts, err := icmpscan.Run(icmpscan.Spec{
+		Hostnames: true,
+		Timeout:   5 * time.Second,
+	})
 	if err != nil {
 		return err
 	}
 	log.Printf("found hosts %d", len(hosts))
-	sc.results.Hosts = hosts
+	now := time.Now()
+	for _, icmpHost := range hosts {
+		ip := icmpHost.IP.String()
+		h := sc.results.Hosts[ip]
+		h.Host = icmpHost
+		h.SeenAt = now
+		sc.results.Hosts[ip] = h
+	}
+	sc.results.ScannedAt = now
 	sc.updates <- &sc.results
 	return nil
 }

@@ -2,6 +2,9 @@
 	"ImportPath": "github.com/jpillora/castlebot",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v77",
+	"Packages": [
+		"."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/andrew-d/go-termutil",
@@ -164,8 +167,8 @@
 		},
 		{
 			"ImportPath": "github.com/jpillora/icmpscan",
-			"Comment": "1.0.1-1-g8bdcc77",
-			"Rev": "8bdcc77a38239534f124ea344eff16affda5f737"
+			"Comment": "1.1.0",
+			"Rev": "34728f0f1bdba3d4fcebde60ac28931c52087d03"
 		},
 		{
 			"ImportPath": "github.com/jpillora/ipmath",
@@ -209,7 +212,7 @@
 		},
 		{
 			"ImportPath": "github.com/miekg/dns",
-			"Rev": "58f52c57ce9df13460ac68200cef30a008b9c468"
+			"Rev": "8060d9f51305bbe024b99679454e62f552cd0b0b"
 		},
 		{
 			"ImportPath": "github.com/stianeikeland/go-rpio",
@@ -291,6 +294,10 @@
 		{
 			"ImportPath": "golang.org/x/net/publicsuffix",
 			"Rev": "f2499483f923065a842d38eb4c7f1927e6fc6e6d"
+		},
+		{
+			"ImportPath": "golang.org/x/sync/errgroup",
+			"Rev": "1ae7c7b29e06598039be46c5083819ba6fd7a97e"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",

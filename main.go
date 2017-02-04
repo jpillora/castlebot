@@ -11,11 +11,12 @@ import (
 
 //initial config
 var config = castle.Config{
-	DB:        "castle.db",
-	Port:      3000,
-	NoUpdates: true, //os.Getenv("DEV") == "1",
+	DB:      "castle.db",
+	Port:    3000,
+	Updates: false, //os.Getenv("DEV") == "1",
 }
 
+//VERSION is set by the compiler
 var VERSION = "0.0.0-src"
 
 func main() {
@@ -27,7 +28,7 @@ func main() {
 		PkgRepo().
 		Parse()
 	//no overseer
-	if config.NoUpdates {
+	if !config.Updates {
 		prog(overseer.DisabledState)
 		return
 	}
@@ -38,7 +39,7 @@ func main() {
 			User: "jpillora",
 			Repo: "castlebot",
 		},
-		// Debug: true,
+		Debug: true,
 	})
 }
 
