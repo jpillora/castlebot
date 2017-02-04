@@ -34,12 +34,33 @@
 		<div class="ui stackable app grid">
 			<div class="ten wide column">
 				<!-- ====== SCANNER SEGMENT ======= -->
-				<div class="ui segment" ng-if="true || app.config || settings.scanner.enabled" ng-controller="ScannerController as scanner">
+				<div class="ui scanner segment" ng-if="true || app.config || settings.scanner.enabled" ng-controller="ScannerController as scanner">
 					<div class="ui top attached label">
 						<span>Scanner</span>
 						<!--<span class="float-right">{{ cam.timestamp }}</span>-->
 					</div>
-					<h3>test</h3>
+					<table class="ui table">
+						<thead>
+							<tr>
+								<th>Active</th>
+								<th>IP</th>
+								<th>RTT</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr ng-hide="scanner.data.status.hosts.length > 0">
+								<td colspan="100%">No hosts found</td>
+							</tr>
+							<tr ng-repeat="h in scanner.data.status.hosts">
+								<td>
+									<i ng-if="h.active" class="green check icon"></i>
+									<i ng-if="!h.active" class="red remove icon"></i>
+								</td>
+								<td>{{ h.ip }}</td>
+								<td>{{ nano(h.rtt) }}</td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
 				<!-- ====== WEB CAM SEGMENT ======= -->
 				<div class="ui segment" ng-if="app.config || settings.webcam.enabled" ng-controller="CamController as cam">
@@ -102,11 +123,11 @@
 					<div class="ui center aligned basic segment">
 						<button class="massive ui button" ng-disabled="g.toggling || g.toggled" ng-class="{loading: g.toggling, green: g.toggled, red: g.error}"
 							ng-click="g.toggle()">
-								<i class="lightning icon"></i>Toggle
+							<i class="lightning icon"></i>Toggle
 							</button>
-						<div class="ui error message" ng-if="g.error">
-							{{ g.error }}
-						</div>
+							<div class="ui error message" ng-if="g.error">
+								{{ g.error }}
+							</div>
 					</div>
 				</div>
 				<!-- ====== INFO SEGMENT ======= -->

@@ -49,3 +49,11 @@ select {
 .b-r {
     border-right: 1px solid rgba(34,36,38,.1);
 }
+
+.scanner.segment {
+    padding: 0;
+}
+
+.scanner.segment .table {
+    border: none;
+}

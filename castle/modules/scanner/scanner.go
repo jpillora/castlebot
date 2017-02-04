@@ -14,7 +14,7 @@ func New() *Scanner {
 	s := &Scanner{}
 	s.timer = time.NewTimer(time.Duration(0))
 	s.timer.Stop()
-	s.settings.Enabled = false
+	s.settings.Enabled = true
 	s.settings.Interval = 5 * time.Minute
 	go s.check()
 	return s

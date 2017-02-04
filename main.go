@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/jpillora/castlebot/castle"
 	"github.com/jpillora/opts"
@@ -14,7 +13,7 @@ import (
 var config = castle.Config{
 	DB:        "castle.db",
 	Port:      3000,
-	NoUpdates: os.Getenv("DEV") == "1",
+	NoUpdates: true, //os.Getenv("DEV") == "1",
 }
 
 var VERSION = "0.0.0-src"
@@ -39,7 +38,7 @@ func main() {
 			User: "jpillora",
 			Repo: "castlebot",
 		},
-		Debug: true,
+		// Debug: true,
 	})
 }
 
