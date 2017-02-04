@@ -52,7 +52,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							<tr ng-hide="hasKeys(scanner.data.status.hosts)">
+							<tr ng-if="!hasKeys(scanner.data.status.hosts)">
 								<td colspan="100%">No hosts found</td>
 							</tr>
 							<tr ng-repeat="h in scanner.data.status.hosts" ng-class="hostClass(h)" ng-if="h.active || h.error">
