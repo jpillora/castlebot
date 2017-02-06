@@ -51,11 +51,13 @@ func (sc *Scanner) ID() string {
 func (sc *Scanner) check() {
 	b := backoff.Backoff{Max: 5 * time.Minute}
 	for {
+		log.Printf("[scanner] scan wait")
 		//wait here for <interval>
 		//short-circuited by Set()
 		sc.timer.Reset(sc.settings.Interval)
 		<-sc.timer.C
 		//scan!
+		log.Printf("[scanner] scan start")
 		if err := sc.scan(); err != nil {
 			log.Printf("[scanner] failed: %s", err)
 			time.Sleep(b.Duration())
@@ -117,6 +119,7 @@ func (sc *Scanner) scan() error {
 
 func (sc *Scanner) Status(updates chan interface{}) {
 	sc.updates = updates
+	sc.push()
 }
 
 func (sc *Scanner) push() {

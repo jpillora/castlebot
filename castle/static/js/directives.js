@@ -15,24 +15,32 @@ module.directive("since", function(sinceMillis) {
   return {
     restrict: "A",
     link: function(s, e, attrs) {
-      var d, t;
+      var to, from, timer;
       var check = function() {
-        clearTimeout(t);
-        if (d && !isNaN(d) && d instanceof Date) {
-          var millis = +new Date() - d;
-          e.text(sinceMillis(millis) + ("ago" in attrs ? " ago" : ""));
-          if (millis < 60 * 1000) {
-            t = setTimeout(check, 1000);
-          } else if (millis < 60 * 60 * 1000) {
-            t = setTimeout(check, 60 * 1000);
-          }
+        clearTimeout(timer);
+        var f;
+        if (from && !isNaN(from) && from instanceof Date) {
+          f = +from;
+        } else {
+          f = +new Date(); //now!
+        }
+        if (to && !isNaN(to) && to instanceof Date) {
+          var ms = f - to;
+          e.text(sinceMillis(ms) + ("ago" in attrs ? " ago" : ""));
+          timer = setTimeout(check, ms ? ms / 100 : 1000);
         }
       };
       s.$watch(attrs.since, function(s) {
-        d = new Date(s);
-        e.attr("title", d.toString());
+        to = new Date(s);
+        e.attr("title", to.toString());
         check();
       });
+      if ("from" in attrs) {
+        s.$watch(attrs.from, function(s) {
+          from = new Date(s);
+          check();
+        });
+      }
     }
   };
 });

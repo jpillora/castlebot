@@ -65,7 +65,7 @@
 								<td>{{ h.mac || '-' }}</td>
 								<td>{{ h.rtt ? nano(h.rtt) : '-' }}</td>
 								<td><span since="h.seenAt" ago></span></td>
-								<td><span since="h.activeAt"></span></td>
+								<td><span since="h.activeAt" from="h.seenAt"></span></td>
 							</tr>
 						</tbody>
 					</table>
