@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	goji "goji.io"
 
@@ -91,8 +92,11 @@ func (s *Modules) Register(rawModule Identified) {
 	//pass module status update channel
 	if statuser, ok := rawModule.(Statusable); ok {
 		updates := make(chan interface{})
-		go statuser.Status(updates)
 		go s.watchUpdates(module, updates)
+		go func() {
+			time.Sleep(1 * time.Second)
+			statuser.Status(updates)
+		}()
 	}
 	//register module routers
 	if routable, ok := rawModule.(Routable); ok {

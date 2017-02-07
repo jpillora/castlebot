@@ -1,22 +1,13 @@
-:warning: In progress, please ignore the text below.
-
----
-
 # castlebot
 
 A home automation bot for your castle.
 
+:warning: In progress
+
 ## Features
 
-* Single binary
-* Easy install
-* Web UI
-* REST API
-* Email API
-* View webcam
-    * Detect motion
-    * Detect image state using supervised learning
-* Actuate GPIO pins
+* Network scan and display
+* Machine information
 
 ### Install
 
@@ -32,22 +23,9 @@ See [the latest release](https://github.com/jpillora/castlebot/releases/latest) 
 $ go get -v github.com/jpillora/castlebot
 ```
 
-**Docker**
-
-``` sh
-$ docker run -d -p 3000:3000 jpillora/castlebot
-```
-
-### Usage
-
-```
-$ castlebot --help
-...
-```
-
 #### MIT License
 
-Copyright © 2016 Jaime Pillora &lt;dev@jpillora.com&gt;
+Copyright © 2017 Jaime Pillora &lt;dev@jpillora.com&gt;
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the

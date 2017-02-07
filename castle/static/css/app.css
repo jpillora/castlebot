@@ -52,6 +52,7 @@ select {
 
 .scanner.segment {
     padding: 0;
+    overflow: hidden;
 }
 
 .scanner.segment .status{
@@ -60,4 +61,8 @@ select {
 
 .scanner.segment .table {
     border: none;
+}
+
+.scanner.segment .table td {
+    white-space: nowrap;
 }

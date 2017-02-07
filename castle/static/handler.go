@@ -3,6 +3,7 @@
 package static
 
 import (
+	"log"
 	"net/http"
 	"os"
 
@@ -13,6 +14,7 @@ import (
 func Handler() http.Handler {
 	var h http.Handler
 	if info, err := os.Stat("castle/static/"); err == nil && info.IsDir() {
+		log.Printf("Use local static files")
 		h = http.FileServer(http.Dir("castle/static/"))
 	} else {
 		h = http.FileServer(&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: AssetInfo})

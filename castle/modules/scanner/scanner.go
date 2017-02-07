@@ -33,6 +33,7 @@ type Scanner struct {
 	timer    *time.Timer
 	settings struct {
 		Enabled           bool
+		Debug             bool
 		Interval          time.Duration
 		ActiveAtThreshold time.Duration
 	}
@@ -51,13 +52,12 @@ func (sc *Scanner) ID() string {
 func (sc *Scanner) check() {
 	b := backoff.Backoff{Max: 5 * time.Minute}
 	for {
-		log.Printf("[scanner] scan wait")
 		//wait here for <interval>
 		//short-circuited by Set()
 		sc.timer.Reset(sc.settings.Interval)
+		log.Printf("[scanner] wait")
 		<-sc.timer.C
 		//scan!
-		log.Printf("[scanner] scan start")
 		if err := sc.scan(); err != nil {
 			log.Printf("[scanner] failed: %s", err)
 			time.Sleep(b.Duration())
@@ -79,18 +79,23 @@ func (sc *Scanner) scan() error {
 		sc.push()
 	}()
 	//perform scan
+	log.Printf("[scanner] start")
 	hosts, err := icmpscan.Run(icmpscan.Spec{
 		MACs:      true,
 		Hostnames: true,
 		Timeout:   5 * time.Second,
+		Log:       sc.settings.Debug,
 	})
 	if err != nil {
 		return err
 	}
 	now := time.Now()
 	for _, ih := range hosts {
-		ip := ih.IP.String()
-		h, ok := sc.results.Hosts[ip]
+		key := ih.MAC
+		if key == "" {
+			key = ih.IP.String()
+		}
+		h, ok := sc.results.Hosts[key]
 		if !ok {
 			h.Host = ih
 		}
@@ -110,7 +115,7 @@ func (sc *Scanner) scan() error {
 		if ih.RTT > 0 {
 			h.RTT = ih.RTT
 		}
-		sc.results.Hosts[ip] = h
+		sc.results.Hosts[key] = h
 	}
 	sc.results.ScannedAt = now
 	sc.push()
@@ -123,7 +128,9 @@ func (sc *Scanner) Status(updates chan interface{}) {
 }
 
 func (sc *Scanner) push() {
-	sc.updates <- &sc.results
+	if sc.updates != nil {
+		sc.updates <- &sc.results
+	}
 }
 
 func (sc *Scanner) Get() interface{} {

@@ -29,3 +29,23 @@ module.service("sinceMillis", function() {
     return v + " " + s[0] + (v === 1 ? "" : "s");
   };
 });
+
+module.service("scale", function() {
+  return function(n, p) {
+    // set defaults
+    if (typeof n !== "number" || isNaN(n)) n = 0;
+    if (!p || typeof p !== "number") p = 2;
+    // set scale index 1000,100000,... becomes 1,2,...
+    var i = Math.floor(Math.floor(Math.log10(n)) / 3);
+    // reduce by scale
+    var s = (n / Math.pow(10, i * 3)).toPrecision(p);
+    // concat (no trailing 0s) and choose scale letter
+    return s.toString().replace(/\.?0+$/, "") +
+      " " +
+      ["", "K", "M", "G", "T", "P", "Z"][i];
+  };
+});
+
+module.filter("scale", function(scale) {
+  return scale;
+});

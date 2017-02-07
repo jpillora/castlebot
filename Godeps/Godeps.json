@@ -7,6 +7,10 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/StackExchange/wmi",
+			"Rev": "f3e2bae1e0cb5aef83e319133eabfee30013a4a5"
+		},
+		{
 			"ImportPath": "github.com/andrew-d/go-termutil",
 			"Rev": "009166a695a2f516c749a26b4ac1f183d89aa336"
 		},
@@ -148,6 +152,16 @@
 			"Rev": "72ba3e6b9e6b87e0c74c9a7a4dc86e8dd8ba4355"
 		},
 		{
+			"ImportPath": "github.com/go-ole/go-ole",
+			"Comment": "v1.2.0-10-g572eabb",
+			"Rev": "572eabb84c424e76a0d39d31510dd7dfd62f70b2"
+		},
+		{
+			"ImportPath": "github.com/go-ole/go-ole/oleutil",
+			"Comment": "v1.2.0-10-g572eabb",
+			"Rev": "572eabb84c424e76a0d39d31510dd7dfd62f70b2"
+		},
+		{
 			"ImportPath": "github.com/gorilla/websocket",
 			"Comment": "v1.0.0-21-g2d1e454",
 			"Rev": "2d1e4548da234d9cb742cc3628556fef86aafbac"
@@ -171,8 +185,8 @@
 		},
 		{
 			"ImportPath": "github.com/jpillora/icmpscan",
-			"Comment": "1.2.0",
-			"Rev": "237d55c537f627d1d8a6f9fbbc3aefd896dd1346"
+			"Comment": "1.2.1",
+			"Rev": "c3db27ea35795160900686b8d7d5d4cb9ec9eed6"
 		},
 		{
 			"ImportPath": "github.com/jpillora/ipmath",
@@ -217,6 +231,26 @@
 		{
 			"ImportPath": "github.com/miekg/dns",
 			"Rev": "8060d9f51305bbe024b99679454e62f552cd0b0b"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/cpu",
+			"Comment": "1.0.0-326-g37d8908",
+			"Rev": "37d89088411de59a4ef9fc340afa0e89dfcb4ea9"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/disk",
+			"Comment": "1.0.0-326-g37d8908",
+			"Rev": "37d89088411de59a4ef9fc340afa0e89dfcb4ea9"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/internal/common",
+			"Comment": "1.0.0-326-g37d8908",
+			"Rev": "37d89088411de59a4ef9fc340afa0e89dfcb4ea9"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/mem",
+			"Comment": "1.0.0-326-g37d8908",
+			"Rev": "37d89088411de59a4ef9fc340afa0e89dfcb4ea9"
 		},
 		{
 			"ImportPath": "github.com/stianeikeland/go-rpio",

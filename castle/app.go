@@ -15,6 +15,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/jpillora/castlebot/castle/modules"
 	"github.com/jpillora/castlebot/castle/modules/gpio"
+	"github.com/jpillora/castlebot/castle/modules/machine"
 	"github.com/jpillora/castlebot/castle/modules/scanner"
 	"github.com/jpillora/castlebot/castle/modules/server"
 	"github.com/jpillora/castlebot/castle/modules/webcam"
@@ -62,10 +63,14 @@ func Run(version string, config Config, state overseer.State) error {
 	m := modules.New(db, router, velox.Pusher(&data))
 	data.Modules = m.JSON()
 	//initialise modules
-	g := gpio.New()
-	sc := scanner.New()
 	serv := server.New(db, router, config.Port)
-	wc := webcam.New(db)
+	mods := []modules.Identified{
+		serv,
+		gpio.New(),
+		scanner.New(),
+		webcam.New(db),
+		machine.New(),
+	}
 	//HACK: let goroutines kick in
 	time.Sleep(50 * time.Millisecond)
 	//setup middleware
@@ -82,10 +87,9 @@ func Run(version string, config Config, state overseer.State) error {
 		})
 	})
 	//register all modules
-	m.Register(g)
-	m.Register(sc)
-	m.Register(serv)
-	m.Register(wc)
+	for _, mod := range mods {
+		m.Register(mod)
+	}
 	//setup velox/static file routes
 	router.Handle(pat.Get("/sync"), velox.SyncHandler(&data))
 	router.Handle(pat.Get("/js/velox.js"), velox.JS)

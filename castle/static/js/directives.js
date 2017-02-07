@@ -26,8 +26,11 @@ module.directive("since", function(sinceMillis) {
         }
         if (to && !isNaN(to) && to instanceof Date) {
           var ms = f - to;
-          e.text(sinceMillis(ms) + ("ago" in attrs ? " ago" : ""));
-          timer = setTimeout(check, ms ? ms / 100 : 1000);
+          var text = ms < 1000
+            ? "now"
+            : sinceMillis(ms) + ("ago" in attrs ? " ago" : "");
+          e.text(text);
+          timer = setTimeout(check, ms > 1000 ? ms / 100 : 1000);
         }
       };
       s.$watch(attrs.since, function(s) {

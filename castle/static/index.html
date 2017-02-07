@@ -56,10 +56,10 @@
 							</tr>
 						</thead>
 						<tbody>
-							<tr ng-if="!hasKeys(scanner.data.status.hosts)">
+							<tr ng-if="scanner.hosts.length == 0">
 								<td colspan="100%">No hosts found</td>
 							</tr>
-							<tr ng-repeat="h in scanner.data.status.hosts" ng-class="hostClass(h)" ng-if="h.seenAt !== '0001-01-01T00:00:00Z' || h.active || h.error">
+							<tr ng-repeat="h in scanner.hosts" ng-class="h.$class" ng-if="h.seenAt !== '0001-01-01T00:00:00Z' || h.active || h.error">
 								<td>{{ h.hostname || '-' }}</td>
 								<td>{{ h.ip }}</td>
 								<td>{{ h.mac || '-' }}</td>
@@ -141,7 +141,25 @@
 				<!-- ====== INFO SEGMENT ======= -->
 				<div class="ui segment">
 					<div class="ui top attached label">Information</div>
-					<div class="ui grid">
+					<div class="ui grid" ng-controller="MachineController as m">
+						<div class="right aligned eight wide column">
+							<b>CPU</b>
+						</div>
+						<div class="eight wide column">
+							{{ round(m.status.cpu) }}%
+						</div>
+						<div class="right aligned eight wide column">
+							<b>Memory</b>
+						</div>
+						<div class="eight wide column">
+							{{ perc(m.status.memoryUsed/m.status.memoryTotal) }}%
+						</div>
+						<div class="right aligned eight wide column">
+							<b>Disk</b>
+						</div>
+						<div class="eight wide column">
+							{{ perc(m.status.diskUsed/m.status.diskTotal) }}%
+						</div>
 						<div class="right aligned eight wide column">
 							<b>Version</b>
 						</div>
@@ -153,6 +171,18 @@
 						</div>
 						<div class="eight wide column">
 							{{ app.data.goVersion }}
+						</div>
+						<div class="right aligned eight wide column">
+							<b>Routines</b>
+						</div>
+						<div class="eight wide column">
+							{{ m.status.goRoutines }}
+						</div>
+						<div class="right aligned eight wide column">
+							<b>Go Memory</b>
+						</div>
+						<div class="eight wide column">
+							{{ m.status.goMemory | scale }}B
 						</div>
 					</div>
 				</div>
@@ -192,6 +222,7 @@
 	<script src="/js/controller/cam.js"></script>
 	<script src="/js/controller/gpio.js"></script>
 	<script src="/js/controller/scanner.js"></script>
+	<script src="/js/controller/machine.js"></script>
 	<script src="/js/directives.js"></script>
 	<script src="/js/services.js"></script>
 </body>
