@@ -91,13 +91,21 @@ func (sc *Scanner) scan() error {
 	}
 	now := time.Now()
 	for _, ih := range hosts {
-		key := ih.MAC
+		mac := ih.MAC
+		ip := ih.IP.String()
+		key := mac
 		if key == "" {
-			key = ih.IP.String()
+			key = ip
 		}
 		h, ok := sc.results.Hosts[key]
 		if !ok {
 			h.Host = ih
+			//newly created with mac, delete old entry
+			if mac != "" {
+				if h2, ok := sc.results.Hosts[ip]; ok && h2.MAC == "" {
+					delete(sc.results.Hosts, ip)
+				}
+			}
 		}
 		if h.SeenAt.IsZero() {
 			log.Printf("[scanner] found host: %s", ih.IP)
