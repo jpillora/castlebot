@@ -4,13 +4,15 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"runtime"
 	"sync"
 	"time"
 
+	"goji.io"
 	"goji.io/pat"
 
-	"goji.io"
+	"golang.org/x/net/context"
 
 	"github.com/boltdb/bolt"
 	"github.com/jpillora/castlebot/castle/modules"
@@ -90,6 +92,15 @@ func Run(version string, config Config, state overseer.State) error {
 	for _, mod := range mods {
 		m.Register(mod)
 	}
+	//setup admin routes
+	router.Handle(pat.Get("/admin/pprof"), http.HandlerFunc(pprof.Index))
+	router.Handle(pat.Get("/admin/pprof/cmdline"), http.HandlerFunc(pprof.Cmdline))
+	router.Handle(pat.Get("/admin/pprof/profile"), http.HandlerFunc(pprof.Profile))
+	router.Handle(pat.Get("/admin/pprof/symbol"), http.HandlerFunc(pprof.Symbol))
+	router.Handle(pat.Get("/admin/pprof/:name"), goji.HandlerFunc(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+		h := pprof.Handler(pat.Param(ctx, "name"))
+		h.ServeHTTP(w, r)
+	}))
 	//setup velox/static file routes
 	router.Handle(pat.Get("/sync"), velox.SyncHandler(&data))
 	router.Handle(pat.Get("/js/velox.js"), velox.JS)

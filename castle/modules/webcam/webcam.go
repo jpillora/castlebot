@@ -11,7 +11,6 @@ import (
 	"time"
 
 	goji "goji.io"
-
 	"goji.io/pat"
 	"goji.io/pattern"
 
