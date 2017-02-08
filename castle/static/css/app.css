@@ -50,9 +50,14 @@ select {
     border-right: 1px solid rgba(34,36,38,.1);
 }
 
+/*===========================*/
+
 .scanner.segment {
     padding: 0;
-    overflow: hidden;
+}
+
+.scanner.segment .wrapper {
+    overflow: auto;
 }
 
 .scanner.segment .status{
@@ -65,4 +70,16 @@ select {
 
 .scanner.segment .table td {
     white-space: nowrap;
+}
+
+.scanner.segment .settings {
+    border-top: thin solid #ddd;
+    margin-top: 0;
+}
+
+
+/*===========================*/
+
+.server.segment .submit.field {
+    text-align: center;
 }

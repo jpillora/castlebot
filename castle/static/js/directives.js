@@ -27,7 +27,7 @@ module.directive("since", function(sinceMillis) {
         if (to && !isNaN(to) && to instanceof Date) {
           var ms = f - to;
           var text = ms < 1000
-            ? "now"
+            ? "ago" in attrs ? "now" : "-"
             : sinceMillis(ms) + ("ago" in attrs ? " ago" : "");
           e.text(text);
           timer = setTimeout(check, ms > 1000 ? ms / 100 : 1000);

@@ -3,6 +3,7 @@ package scanner
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"sync"
 	"time"
 
@@ -11,9 +12,12 @@ import (
 )
 
 type host struct {
-	*icmpscan.Host
-	SeenAt   time.Time `json:"seenAt"`
-	ActiveAt time.Time `json:"activeAt"`
+	IP       net.IP        `json:"ip"`
+	MAC      string        `json:"mac,omitempty"`
+	Hostname string        `json:"hostname,omitempty"`
+	RTT      time.Duration `json:"rtt,omitempty"`
+	SeenAt   time.Time     `json:"seenAt"`
+	ActiveAt time.Time     `json:"activeAt"`
 }
 
 func New() *Scanner {
@@ -55,7 +59,6 @@ func (sc *Scanner) check() {
 		//wait here for <interval>
 		//short-circuited by Set()
 		sc.timer.Reset(sc.settings.Interval)
-		log.Printf("[scanner] wait")
 		<-sc.timer.C
 		//scan!
 		if err := sc.scan(); err != nil {
@@ -79,7 +82,6 @@ func (sc *Scanner) scan() error {
 		sc.push()
 	}()
 	//perform scan
-	log.Printf("[scanner] start")
 	hosts, err := icmpscan.Run(icmpscan.Spec{
 		MACs:      true,
 		Hostnames: true,
@@ -91,22 +93,32 @@ func (sc *Scanner) scan() error {
 	}
 	now := time.Now()
 	for _, ih := range hosts {
+		//ip and mac as strings
 		mac := ih.MAC
 		ip := ih.IP.String()
+		//decide on key
 		key := mac
 		if key == "" {
 			key = ip
 		}
-		h, ok := sc.results.Hosts[key]
-		if !ok {
-			h.Host = ih
-			//newly created with mac, delete old entry
-			if mac != "" {
-				if h2, ok := sc.results.Hosts[ip]; ok && h2.MAC == "" {
-					delete(sc.results.Hosts, ip)
-				}
+		h := sc.results.Hosts[key]
+		h.IP = ih.IP
+		if mac != "" {
+			h.MAC = mac
+		}
+		if ih.Hostname != "" {
+			h.Hostname = ih.Hostname
+		}
+		if ih.RTT > 0 {
+			h.RTT = ih.RTT
+		}
+		//mac key, wipe ip only entry
+		if key == mac {
+			if h2, ok := sc.results.Hosts[ip]; ok && h2.MAC == "" {
+				delete(sc.results.Hosts, ip)
 			}
 		}
+		//calculate seen
 		if h.SeenAt.IsZero() {
 			log.Printf("[scanner] found host: %s", ih.IP)
 		}
@@ -114,15 +126,7 @@ func (sc *Scanner) scan() error {
 			h.ActiveAt = now
 		}
 		h.SeenAt = now
-		if ih.Hostname != "" {
-			h.Hostname = ih.Hostname
-		}
-		if ih.MAC != "" {
-			h.MAC = ih.MAC
-		}
-		if ih.RTT > 0 {
-			h.RTT = ih.RTT
-		}
+		//update host
 		sc.results.Hosts[key] = h
 	}
 	sc.results.ScannedAt = now

@@ -14,7 +14,7 @@ func New() *Machine {
 	m := &Machine{}
 	m.timer = time.NewTimer(time.Duration(0))
 	m.timer.Stop()
-	m.settings.Interval = 30 * time.Second
+	m.settings.Interval = 5 * time.Second
 	go m.check()
 	return m
 }

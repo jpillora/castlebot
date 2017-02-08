@@ -1,7 +1,7 @@
 module.controller("CamController", function($scope, $http) {
   var cam = window.cam = $scope.cam = this;
   cam.started = false;
-  cam.title = "Gate";
+  cam.title = "Webcam";
   cam.range = "hour";
   cam.timestamp = "";
   cam.blob = null;
@@ -11,13 +11,14 @@ module.controller("CamController", function($scope, $http) {
 
   var update = cam.update = function(obj) {
     var data = angular.extend($scope.app.data.settings.webcam, obj || {});
-    $http({url: "/settings/webcam", method: "PUT", data: data}).then(function(
-      resp
-    ) {
-      console.info("succeses", resp.data);
-    }, function(resp) {
-      console.warn(resp.data);
-    });
+    $http({url: "/settings/webcam", method: "PUT", data: data}).then(
+      function(resp) {
+        console.info("succeses", resp.data);
+      },
+      function(resp) {
+        console.warn(resp.data);
+      }
+    );
   };
 
   //webcam enabled? start/stop

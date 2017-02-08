@@ -186,7 +186,7 @@
 		{
 			"ImportPath": "github.com/jpillora/icmpscan",
 			"Comment": "1.2.1",
-			"Rev": "c3db27ea35795160900686b8d7d5d4cb9ec9eed6"
+			"Rev": "599dd2caa96015dc8d334fef613bf9e6ecf00676"
 		},
 		{
 			"ImportPath": "github.com/jpillora/ipmath",
