@@ -16,15 +16,23 @@ var config = castle.Config{
 	Updates: false, //os.Getenv("DEV") == "1",
 }
 
-//VERSION is set by the compiler
-var VERSION = "0.0.0-src"
+//VERSION and BUILDTIME will be set by the compiler
+var (
+	VERSION   = ""
+	BUILDTIME = ""
+)
 
 func main() {
 	overseer.SanityCheck()
+	//displayed version
+	v := VERSION
+	if v == "" {
+		v = BUILDTIME
+	}
 	//parse config
 	opts.New(&config).
 		Name("castle").
-		Version(VERSION).
+		Version(v).
 		PkgRepo().
 		Parse()
 	//no overseer
@@ -44,7 +52,7 @@ func main() {
 }
 
 func prog(state overseer.State) {
-	if err := castle.Run(VERSION, config, state); err != nil {
+	if err := castle.Run(VERSION, BUILDTIME, config, state); err != nil {
 		log.Fatal(err)
 	}
 }

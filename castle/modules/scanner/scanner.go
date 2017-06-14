@@ -27,7 +27,7 @@ func New() *Scanner {
 	s.settings.Enabled = true
 	s.settings.Interval = 2 * time.Minute
 	s.settings.ActiveAtThreshold = 15 * time.Minute
-	s.results.Hosts = map[string]host{}
+	s.results.Hosts = map[string]*host{}
 	go s.check()
 	return s
 }
@@ -43,9 +43,9 @@ type Scanner struct {
 	}
 	results struct {
 		sync.Mutex
-		Scanning  bool            `json:"scanning"`
-		ScannedAt time.Time       `json:"scannedAt"`
-		Hosts     map[string]host `json:"hosts"`
+		Scanning  bool             `json:"scanning"`
+		ScannedAt time.Time        `json:"scannedAt"`
+		Hosts     map[string]*host `json:"hosts"`
 	}
 }
 
@@ -101,7 +101,12 @@ func (sc *Scanner) scan() error {
 		if key == "" {
 			key = ip
 		}
-		h := sc.results.Hosts[key]
+		//upsert host
+		h, ok := sc.results.Hosts[key]
+		if !ok {
+			h = &host{}
+			sc.results.Hosts[key] = h
+		}
 		h.IP = ih.IP
 		if mac != "" {
 			h.MAC = mac
@@ -112,7 +117,7 @@ func (sc *Scanner) scan() error {
 		if ih.RTT > 0 {
 			h.RTT = ih.RTT
 		}
-		//mac key, wipe ip only entry
+		//mac key? wipe ip only entry
 		if key == mac {
 			if h2, ok := sc.results.Hosts[ip]; ok && h2.MAC == "" {
 				delete(sc.results.Hosts, ip)
@@ -126,8 +131,6 @@ func (sc *Scanner) scan() error {
 			h.ActiveAt = now
 		}
 		h.SeenAt = now
-		//update host
-		sc.results.Hosts[key] = h
 	}
 	sc.results.ScannedAt = now
 	sc.push()

@@ -159,12 +159,12 @@
 					<div class="ui top attached label">Button</div>
 					<div class="ui center aligned basic segment">
 						<button class="massive ui button" ng-disabled="g.toggling || g.toggled" ng-class="{loading: g.toggling, green: g.toggled, red: g.error}"
-							ng-click="g.toggle()">
+						 ng-click="g.toggle()">
 							<i class="lightning icon"></i>Toggle
 							</button>
-							<div class="ui error message" ng-if="g.error">
-								{{ g.error }}
-							</div>
+						<div class="ui error message" ng-if="g.error">
+							{{ g.error }}
+						</div>
 					</div>
 				</div>
 				<!-- ====== INFO SEGMENT ======= -->
@@ -212,6 +212,18 @@
 						</div>
 						<div class="eight wide column">
 							{{ m.status.goMemory | scale }}B
+						</div>
+						<div class="right aligned eight wide column">
+							<b>Up</b>
+						</div>
+						<div class="eight wide column">
+							<span since="app.data.upTime" ago></span>
+						</div>
+						<div class="right aligned eight wide column">
+							<b>Built</b>
+						</div>
+						<div class="eight wide column">
+							<span since="app.data.upTime" ago></span>
 						</div>
 					</div>
 				</div>

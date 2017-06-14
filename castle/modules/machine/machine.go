@@ -94,6 +94,7 @@ func (m *Machine) loadStats(first bool) {
 	//count current number of goroutines
 	m.status.GoRoutines = runtime.NumGoroutine()
 	//done
+	m.push()
 }
 
 func (m *Machine) Status(updates chan interface{}) {

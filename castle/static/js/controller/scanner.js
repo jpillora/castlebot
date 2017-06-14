@@ -1,5 +1,5 @@
 module.controller("ScannerController", function($scope, $http, $timeout) {
-  var scanner = $scope.scanner = window.scanner = this;
+  var scanner = ($scope.scanner = window.scanner = this);
   scanner.data = {};
   scanner.hosts = [];
   scanner.hostMap = {};
@@ -27,9 +27,9 @@ module.controller("ScannerController", function($scope, $http, $timeout) {
   var ipToInt = function(ip) {
     var int = 0;
     var octs = ip.split(".");
-    for (var i = octs.length - 1; i >= 0; i--) {
+    for (var i = 0; i < octs.length; i++) {
       var o = parseInt(octs[i]);
-      int = (int << 4) + o;
+      int = (int << 8) + o;
     }
     return int;
   };

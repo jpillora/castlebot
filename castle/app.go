@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/jpillora/castlebot/castle/modules"
 	"github.com/jpillora/castlebot/castle/modules/gpio"
 	"github.com/jpillora/castlebot/castle/modules/machine"
+	"github.com/jpillora/castlebot/castle/modules/radio"
 	"github.com/jpillora/castlebot/castle/modules/scanner"
 	"github.com/jpillora/castlebot/castle/modules/server"
 	"github.com/jpillora/castlebot/castle/modules/webcam"
@@ -36,7 +38,7 @@ type Config struct {
 	Updates bool   `help:"enable automatic updates"`
 }
 
-func Run(version string, config Config, state overseer.State) error {
+func Run(version, buildtime string, config Config, state overseer.State) error {
 	//validate config
 	if config.DB == "" {
 		return errors.New("database location is required")
@@ -52,12 +54,18 @@ func Run(version string, config Config, state overseer.State) error {
 	data := struct {
 		velox.State
 		sync.Mutex
+		UpTime    time.Time   `json:"upTime"`
+		BuildTime time.Time   `json:"buildTime"`
 		Version   string      `json:"version"`
 		GoVersion string      `json:"goVersion"`
 		Modules   interface{} `json:"modules"`
 	}{
+		UpTime:    time.Now(),
 		Version:   version,
 		GoVersion: runtime.Version(),
+	}
+	if n, err := strconv.ParseInt(buildtime, 10, 64); err == nil {
+		data.BuildTime = time.Unix(n, 0)
 	}
 	//root router
 	router := goji.NewMux()
@@ -72,6 +80,7 @@ func Run(version string, config Config, state overseer.State) error {
 		scanner.New(),
 		webcam.New(db),
 		machine.New(),
+		radio.New(),
 	}
 	//HACK: let goroutines kick in
 	time.Sleep(50 * time.Millisecond)
