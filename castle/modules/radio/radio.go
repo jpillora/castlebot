@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"golang.org/x/net/context"
-
 	"github.com/jpillora/go433"
 
 	goji "goji.io"
@@ -28,10 +26,10 @@ func (rd *Radio) ID() string {
 }
 
 func (rd *Radio) RegisterRoutes(mux *goji.Mux) {
-	mux.HandleC(pat.Get("/send"), goji.HandlerFunc(rd.send))
+	mux.Handle(pat.Get("/send"), http.HandlerFunc(rd.send))
 }
 
-func (rd *Radio) send(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (rd *Radio) send(w http.ResponseWriter, r *http.Request) {
 	code, err := strconv.ParseUint(r.URL.Query().Get("code"), 10, 32)
 	if err != nil {
 		http.Error(w, "invalid code", 400)
@@ -45,15 +43,3 @@ func (rd *Radio) send(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	log.Printf("[radio] sent: %d", code)
 	w.Write([]byte("success"))
 }
-
-// func (a *Radio) Get() interface{} {
-// 	return &a.settings
-// }
-
-// func (a *Radio) Set(j json.RawMessage) error {
-// 	if err := json.Unmarshal(j, &a.settings); err != nil {
-// 		return err
-// 	}
-// 	//do stuff
-// 	return nil
-// }

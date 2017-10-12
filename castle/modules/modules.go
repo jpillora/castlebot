@@ -9,7 +9,6 @@ import (
 	goji "goji.io"
 
 	"goji.io/pat"
-	"golang.org/x/net/context"
 
 	"github.com/boltdb/bolt"
 	"github.com/jpillora/velox"
@@ -86,8 +85,8 @@ func (s *Modules) Register(rawModule Identified) {
 		module.Settings = settable.Get()
 		module.settable = settable
 		//rest api
-		subrouter.HandleC(pat.Get("/settings"), s.getSettingsHandler(module))
-		subrouter.HandleC(pat.Put("/settings"), s.updateSettingsHandler(module))
+		subrouter.Handle(pat.Get("/settings"), s.getSettingsHandler(module))
+		subrouter.Handle(pat.Put("/settings"), s.updateSettingsHandler(module))
 	}
 	//pass module status update channel
 	if statuser, ok := rawModule.(Statusable); ok {
@@ -113,8 +112,8 @@ func (s *Modules) watchUpdates(module *Module, updates chan interface{}) {
 	}
 }
 
-func (s *Modules) getSettingsHandler(module *Module) goji.HandlerFunc {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (s *Modules) getSettingsHandler(module *Module) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.MarshalIndent(&module.Settings, "", "  ")
 		if err != nil {
 			http.Error(w, "Settings contain invalid JSON", http.StatusBadRequest)
@@ -126,8 +125,8 @@ func (s *Modules) getSettingsHandler(module *Module) goji.HandlerFunc {
 	}
 }
 
-func (s *Modules) updateSettingsHandler(module *Module) goji.HandlerFunc {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (s *Modules) updateSettingsHandler(module *Module) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var j json.RawMessage
 		if err := json.NewDecoder(r.Body).Decode(&j); err != nil {
 			http.Error(w, "Expecting valid JSON", http.StatusBadRequest)
@@ -143,6 +142,7 @@ func (s *Modules) updateSettingsHandler(module *Module) goji.HandlerFunc {
 			log.Printf("failed to store: %s: %s", module.ID, err)
 		}
 		module.Settings = module.settable.Get()
+		log.Printf("updated settings: %s: %+v", module.ID, module.Settings)
 		s.state.Push()
 	}
 }

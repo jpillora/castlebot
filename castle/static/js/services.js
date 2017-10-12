@@ -31,18 +31,20 @@ module.service("sinceMillis", function() {
 });
 
 module.service("scale", function() {
-  return function(n, p) {
+  return function(n, d) {
     // set defaults
     if (typeof n !== "number" || isNaN(n)) n = 0;
-    if (!p || typeof p !== "number") p = 2;
+    if (!d || typeof d !== "number") d = 1;
     // set scale index 1000,100000,... becomes 1,2,...
     var i = Math.floor(Math.floor(Math.log10(n)) / 3);
-    // reduce by scale
-    var s = (n / Math.pow(10, i * 3)).toPrecision(p);
+    var f = Math.pow(10, d);
+    var s = Math.round(n / Math.pow(10, i * 3) * f) / f;
     // concat (no trailing 0s) and choose scale letter
-    return s.toString().replace(/\.?0+$/, "") +
+    return (
+      s.toString().replace(/\.?0+$/, "") +
       " " +
-      ["", "K", "M", "G", "T", "P", "Z"][i];
+      ["", "K", "M", "G", "T", "P", "Z"][i]
+    );
   };
 });
 

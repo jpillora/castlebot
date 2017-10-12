@@ -2,22 +2,22 @@ package webcam
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	goji "goji.io"
 	"goji.io/pat"
-	"goji.io/pattern"
-
-	"golang.org/x/net/context"
 
 	"github.com/boltdb/bolt"
 	"github.com/jpillora/backoff"
+	"github.com/jpillora/castlebot/castle/util"
+	dropbox "github.com/jpillora/go-dropbox"
 )
 
 func New(db *bolt.DB) *Webcam {
@@ -26,6 +26,8 @@ func New(db *bolt.DB) *Webcam {
 	w.timer = time.NewTimer(time.Duration(0))
 	w.timer.Stop()
 	w.snaps = []*snap{}
+	w.drop.queue = nil
+	w.drop.client = nil
 	w.settings.Enabled = false
 	w.settings.Interval = 1
 	w.settings.Threshold = 4000
@@ -34,15 +36,27 @@ func New(db *bolt.DB) *Webcam {
 }
 
 type Webcam struct {
-	db       *bolt.DB
-	timer    *time.Timer
-	snaps    []*snap
+	db        *bolt.DB
+	timer     *time.Timer
+	snaps     []*snap
+	computing uint32
+	computed  *snap
+	origin    string
+	drop      struct {
+		queue   chan *snap
+		client  *dropbox.Client
+		lastDir string
+	}
 	settings struct {
-		Enabled     bool   `json:"enabled"`
-		StoredBytes int64  `json:"storedBytes"`
-		ImageURL    string `json:"imageUrl"`
-		Interval    int    `json:"interval"`
-		Threshold   int    `json:"threshold"`
+		Enabled     bool          `json:"enabled"`
+		StoredBytes int64         `json:"storedBytes"`
+		Host        string        `json:"host"`
+		User        string        `json:"user"`
+		Pass        string        `json:"pass"`
+		Interval    util.Duration `json:"interval"`
+		Threshold   int           `json:"threshold"`
+		DropboxAPI  string        `json:"dropboxApi"`
+		DropboxBase string        `json:"dropboxBase"`
 	}
 }
 
@@ -53,29 +67,38 @@ func (w *Webcam) ID() string {
 func (w *Webcam) check() {
 	b := backoff.Backoff{Max: 5 * time.Minute}
 	for {
-		w.timer.Reset(time.Duration(w.settings.Interval) * time.Second)
-		<-w.timer.C
 		//take snap, process, store, etc
+		t0 := time.Now()
 		if err := w.snap(); err != nil {
 			log.Printf("[webcam] snap failed: %s", err)
 			time.Sleep(b.Duration())
 		} else {
 			b.Reset()
 		}
+		dur := time.Now().Sub(t0)
+		interval := time.Duration(w.settings.Interval) - dur
+		if interval < 0 {
+			interval = 0
+		}
+		//set timer to
+		w.timer.Reset(interval)
+		//wait for timer
+		<-w.timer.C
 	}
 }
 
 func (w *Webcam) snap() error {
 	//disabled
-	if !w.settings.Enabled {
+	if !w.settings.Enabled || w.origin == "" {
 		return nil
 	}
-	//no image url defined
-	if w.settings.ImageURL == "" {
-		return nil
-	}
-	log.Printf("GET %s", w.settings.ImageURL)
-	resp, err := http.Get(w.settings.ImageURL)
+	//build url
+	q := url.Values{}
+	q.Set("user", w.settings.User)
+	q.Set("pwd", w.settings.Pass)
+	snapshotURL := w.origin + "/snapshot.cgi?" + q.Encode()
+	//
+	resp, err := http.Get(snapshotURL)
 	if err != nil {
 		return fmt.Errorf("request: %s", err)
 	}
@@ -84,28 +107,39 @@ func (w *Webcam) snap() error {
 	if err != nil {
 		return fmt.Errorf("download: %s", err)
 	}
-	//find last
-	l := len(w.snaps)
-	var last *snap
-	if l > 0 {
-		last = w.snaps[l-1]
-	}
 	//create snap
-	curr, err := newSnap(b, w.settings.Threshold, last)
+	curr, err := newSnap(b)
 	if err != nil {
 		return err
 	}
 	//store last 100 snaps
-	w.snaps = append(w.snaps, curr)
-	if l+1 == 100 {
-		w.snaps = w.snaps[1:]
+	if len(w.snaps) == 100 {
+		w.snaps = append(w.snaps[1:], curr)
+	} else {
+		w.snaps = append(w.snaps, curr)
 	}
-	//compare last to current, if changed much, store both
-	//TODO restore
-	// if curr.pdiffNum > 4000 {
-	// 	w.store(curr)
-	// }
+	//attempt to mark compute in progress
+	if atomic.CompareAndSwapUint32(&w.computing, 0, 1) {
+		go w.computeDiff(curr)
+	}
 	return nil
+}
+
+func (w *Webcam) computeDiff(curr *snap) {
+	//has previosu?
+	if w.computed != nil {
+		//compare with last computed
+		diff := curr.computeDiff(w.settings.Threshold, w.computed)
+		// log.Printf("compute: %s -> %s: %d", w.computed.id, curr.id, diff)
+		if diff > w.settings.Threshold {
+			//compare last to current, if changed much, store both
+			go w.store(w.computed)
+			go w.store(curr)
+		}
+	}
+	w.computed = curr
+	//mark complete
+	atomic.StoreUint32(&w.computing, 0)
 }
 
 var bucketName = []byte("snaps")
@@ -114,6 +148,8 @@ func (w *Webcam) store(s *snap) {
 	if s.stored {
 		return
 	}
+	s.stored = true
+	//store locally to database
 	if err := w.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists(bucketName)
 		if err != nil {
@@ -122,41 +158,22 @@ func (w *Webcam) store(s *snap) {
 		return b.Put([]byte(s.id), s.raw)
 	}); err != nil {
 		log.Printf("[webcam] db write failed: %s", err)
-		return
 	}
-	log.Printf("[webcam] wrote snap %s", s.id)
-	s.stored = true
-}
-
-func (w *Webcam) Get() interface{} {
-	return &w.settings
-}
-
-func (w *Webcam) Set(j json.RawMessage) error {
-	if j == nil {
-		//use defaults
-		w.settings.StoredBytes = 500e9 //500MB
-	} else {
-		if err := json.Unmarshal(j, &w.settings); err != nil {
-			return err
-		}
-	}
-	if w.settings.Interval < 1 {
-		w.settings.Interval = 1
-	}
-	//do check now!
-	w.timer.Reset(0)
-	return nil
+	//store to dropbox (if connected)
+	w.dropenque(s)
+	//stored!
+	log.Printf("[webcam] wrote snap %s (diff: %d)", s.id, s.pdiffNum)
 }
 
 func (wc *Webcam) RegisterRoutes(mux *goji.Mux) {
-	mux.HandleC(pat.Get("/snaps"), goji.HandlerFunc(wc.getList))
-	mux.HandleC(pat.Get("/snap/:id"), goji.HandlerFunc(wc.getHistorical))
-	mux.HandleC(pat.Get("/live/:index/:type"), goji.HandlerFunc(wc.getLive))
-	mux.HandleC(pat.Get("/live/:index"), goji.HandlerFunc(wc.getLive))
+	mux.Handle(pat.Get("/snaps"), http.HandlerFunc(wc.getList))
+	mux.Handle(pat.Get("/snap/:id"), http.HandlerFunc(wc.getHistorical))
+	mux.Handle(pat.Get("/live/:index/:type"), http.HandlerFunc(wc.getLive))
+	mux.Handle(pat.Get("/live/:index"), http.HandlerFunc(wc.getLive))
+	mux.Handle(pat.Put("/move/:dir"), http.HandlerFunc(wc.move))
 }
 
-func (wc *Webcam) getList(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (wc *Webcam) getList(w http.ResponseWriter, r *http.Request) {
 	n := 0
 	if err := wc.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
@@ -179,32 +196,28 @@ func (wc *Webcam) getList(ctx context.Context, w http.ResponseWriter, r *http.Re
 	fmt.Fprintf(w, "done (#%d)\n", n)
 }
 
-func (wc *Webcam) getLive(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	i, err := strconv.Atoi(pat.Param(ctx, "index"))
+func (wc *Webcam) getLive(w http.ResponseWriter, r *http.Request) {
+	istr := pat.Param(r, "index")
+	i, err := strconv.Atoi(istr)
 	if err != nil {
 		http.Error(w, "index must be an integer", http.StatusBadRequest)
 		return
 	}
 	total := len(wc.snaps)
-	if total == 0 || i <= 0 || i > total {
-		http.Error(w, "index out of range", http.StatusBadRequest)
+	if total == 0 || i < 0 || i > total {
+		http.Error(w, "index out of range: "+istr, http.StatusBadRequest)
 		return
 	}
 	//reverse index order
 	s := wc.snaps[total-1-i]
-	w.Header().Set("Interval", strconv.Itoa(wc.settings.Interval))
+	intervalMs := wc.settings.Interval / 1e6
+	w.Header().Set("Interval-Millis", strconv.Itoa(int(intervalMs)))
 	//find image
 	var b []byte
-
-	snaptype := ""
-	if v := ctx.Value(pattern.Variable("type")); v != nil {
-		if t, ok := v.(string); ok {
-			snaptype = t
-		}
-	}
+	snaptype := pat.Param(r, "type")
 	switch snaptype {
-	case "diff":
-		b = s.diff
+	// case "diff":
+	// 	b = s.diff
 	default:
 		b = s.raw
 	}
@@ -212,8 +225,8 @@ func (wc *Webcam) getLive(ctx context.Context, w http.ResponseWriter, r *http.Re
 	http.ServeContent(w, r, string(s.id)+".jpg", s.t, bytes.NewReader(b))
 }
 
-func (wc *Webcam) getHistorical(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	targetID := []byte(pat.Param(ctx, "id"))
+func (wc *Webcam) getHistorical(w http.ResponseWriter, r *http.Request) {
+	targetID := []byte(pat.Param(r, "id"))
 	if err := wc.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 		if b == nil {
@@ -254,6 +267,42 @@ func (wc *Webcam) getHistorical(ctx context.Context, w http.ResponseWriter, r *h
 		http.Error(w, "db view failed", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (wc *Webcam) move(w http.ResponseWriter, r *http.Request) {
+	dir := pat.Param(r, "dir")
+	cmd := ""
+	switch dir {
+	case "up":
+		cmd = "0"
+	case "down":
+		cmd = "2"
+	case "right":
+		cmd = "4"
+	case "left":
+		cmd = "6"
+	default:
+		http.Error(w, "invalid dir", 400)
+		return
+	}
+	//build url
+	q := url.Values{}
+	q.Set("loginuse", wc.settings.User)
+	q.Set("loginpas", wc.settings.Pass)
+	q.Set("command", cmd)
+	q.Set("onestep", "1")
+	decoderURL := wc.origin + "/decoder_control.cgi?" + q.Encode()
+	resp, err := http.Get(decoderURL)
+	if err != nil {
+		http.Error(w, "req invalid", 400)
+		return
+	}
+	if resp.StatusCode != 200 {
+		http.Error(w, "req failed: "+resp.Status, 400)
+		return
+	}
+	w.Write([]byte("success"))
+	log.Printf("[webcam] move: %s", dir)
 }
 
 func toID(t time.Time) []byte {

@@ -1,8 +1,0 @@
-language: go
-go:
-    - 1.7
-    - 1.6
-    - 1.5
-    - 1.4
-script:
-    - go build -o example/example example/example.go

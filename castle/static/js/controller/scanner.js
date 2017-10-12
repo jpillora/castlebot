@@ -7,6 +7,7 @@ module.controller("ScannerController", function($scope, $http, $timeout) {
     "app.data.modules.scanner",
     function(data) {
       scanner.data = data || {};
+      scanner.settings = scanner.data.settings || {};
       var status = scanner.data.status || {};
       if (status.hosts) {
         extractHosts(status.hosts);
@@ -14,6 +15,18 @@ module.controller("ScannerController", function($scope, $http, $timeout) {
     },
     true
   );
+
+  scanner.update = function(settings) {
+    var data = angular.extend({}, scanner.settings, settings || {});
+    $http({url: "/m/scanner/settings", method: "PUT", data: data}).then(
+      function(resp) {
+        console.info("succeses", resp.data);
+      },
+      function(resp) {
+        console.warn(resp.data);
+      }
+    );
+  };
 
   $scope.nano = function(nano) {
     var ms = nano / 1e6;

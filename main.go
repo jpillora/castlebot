@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"strconv"
+	"time"
 
 	"github.com/jpillora/castlebot/castle"
 	"github.com/jpillora/opts"
@@ -12,27 +14,22 @@ import (
 //initial config
 var config = castle.Config{
 	DB:      "castle.db",
+	Name:    "Castlebot",
 	Port:    3000,
-	Updates: false, //os.Getenv("DEV") == "1",
+	Updates: false,
 }
 
-//VERSION and BUILDTIME will be set by the compiler
+//BuildTime will be set by the compiler
 var (
-	VERSION   = ""
-	BUILDTIME = ""
+	BuildTime = strconv.FormatInt(time.Now().Unix(), 10)
 )
 
 func main() {
 	overseer.SanityCheck()
-	//displayed version
-	v := VERSION
-	if v == "" {
-		v = BUILDTIME
-	}
 	//parse config
 	opts.New(&config).
 		Name("castle").
-		Version(v).
+		Version(BuildTime).
 		PkgRepo().
 		Parse()
 	//no overseer
@@ -52,7 +49,7 @@ func main() {
 }
 
 func prog(state overseer.State) {
-	if err := castle.Run(VERSION, BUILDTIME, config, state); err != nil {
+	if err := castle.Run(BuildTime, config, state); err != nil {
 		log.Fatal(err)
 	}
 }

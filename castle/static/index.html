@@ -8,15 +8,24 @@
 	<link rel="icon" type="image/x-icon" href="css/castle.png">
 	<link rel="stylesheet" href="css/semantic.min.css">
 	<link rel="stylesheet" href="css/app.css">
-	<title ng-bind="app.data.title || 'Castlebot'">Castlebot</title>
+	<title ng-bind="data.name || 'Castlebot'">Castlebot</title>
+	<style>
+		body {
+			opacity: 0
+		}
+
+		body.loaded {
+			opacity: 1
+		}
+	</style>
 </head>
 
-<body>
+<body ng-class="{loaded:true}">
 	<div class="ui menu">
 		<div class="ui container">
 			<a href="https://github.com/jpillora/castlebot" class="header item">
 				<i class="fort awesome icon"></i>
-				<span ng-bind="app.data.title || 'Castlebot'">Castlebot</span>
+				<span ng-bind="data.name || 'Castlebot'">Castlebot</span>
 			</a>
 			<!-- <span class="item">{{ app.data.version }}</span> -->
 			<div class="right menu">
@@ -24,8 +33,7 @@
 					<i class="settings icon" ng-class="{blue:app.config}"></i>
 				</a>
 				<span class="item  b-r">
-					<i class="lightning icon"
-						ng-class="app.connected ? 'green' : 'red'"></i>
+					<i class="lightning icon" ng-class="app.connected ? 'green' : 'red'"></i>
 				</span>
 			</div>
 		</div>
@@ -34,19 +42,20 @@
 		<div class="ui stackable app grid">
 			<div class="twelve wide column">
 				<!-- ====== SCANNER SEGMENT ======= -->
-				<div class="ui scanner segment" ng-if="true || app.config || settings.scanner.enabled" ng-controller="ScannerController as scanner">
-					<div class="ui top attached label">
+				<div class="ui scanner segment" ng-controller="ScannerController as scanner">
+					<div class="ui top attached label" ng-click="ui.shown.scanner = !ui.shown.scanner">
 						<span>Scanner</span>
-						<span class="float-right">
-						<!-- scan in progress -->
-						<span ng-if="scanner.data.status.scanning">Scanning...</span>
-						<!-- scaned at report -->
-						<span ng-if="!scanner.data.status.scanning">
-									Scanned <span since="scanner.data.status.scannedAt" ago>-</span>
-						</span>
+						<span class="float-right" ng-if="scanner.settings.enabled">
+							<!-- scan in progress -->
+							<span ng-if="scanner.data.status.scanning">Scanning...</span>
+							<!-- scaned at report -->
+							<span ng-if="!scanner.data.status.scanning">
+								Scanned
+								<span since="scanner.data.status.scannedAt" ago>-</span>
+							</span>
 						</span>
 					</div>
-					<div class="wrapper">
+					<div class="wrapper slide" ng-class="{down: ui.shown.scanner}">
 						<table class="ui unstackable table">
 							<thead>
 								<tr>
@@ -67,8 +76,12 @@
 									<td>{{ h.ip }}</td>
 									<td>{{ h.mac || '-' }}</td>
 									<td>{{ h.rtt ? nano(h.rtt) : '-' }}</td>
-									<td><span since="h.seenAt" ago></span></td>
-									<td><span since="h.activeAt" from="h.seenAt"></span></td>
+									<td>
+										<span since="h.seenAt" ago></span>
+									</td>
+									<td>
+										<span since="h.activeAt" from="h.seenAt"></span>
+									</td>
 								</tr>
 							</tbody>
 						</table>
@@ -77,96 +90,142 @@
 						<form class="ui form">
 							<div class="two fields">
 								<div class="field">
-									<label>Foo</label>
-									<input type="text" ng-model="inputs.App.User"></input>
+									<label>Interval</label>
+									<input type="text" ng-model="scanner.settings.interval">
 								</div>
 								<div class="field">
-									<label>Bar</label>
-									<input type="password" ng-model="inputs.App.Pass"></input>
+									<label>Active Threshold</label>
+									<input type="text" ng-model="scanner.settings.threshold">
 								</div>
 							</div>
-							<div class="two fields">
-								<div class="submit field">
-									<!--  -->
-								</div>
-								<div class="submit field">
-									<label></label>
-									<button class="ui tiny button" ng-click="g.toggle()">
-										<i class="save icon"></i>Save
-									</button>
-								</div>
+							<div class="center field">
+								<button class="ui button" ng-click="scanner.settings.enabled = !scanner.settings.enabled">
+									{{ scanner.settings.enabled ? 'Enabled' : 'Disabled' }}
+								</button>
+								<button class="ui button" ng-click="scanner.update()">
+									<i class="save icon"></i>Save
+								</button>
 							</div>
 						</form>
 					</div>
 				</div>
 				<!-- ====== WEB CAM SEGMENT ======= -->
-				<div class="ui segment" ng-if="app.config || settings.webcam.enabled" ng-controller="CamController as cam">
-					<div class="ui top attached label">
+				<div class="ui webcam segment" ng-controller="CamController as cam">
+					<div class="ui top attached label" ng-click="ui.shown.webcam = !ui.shown.webcam">
 						<span>{{ cam.title }}</span>
 						<span class="float-right">{{ cam.timestamp }}</span>
 					</div>
-					<div class="image-container" ng-if="cam.blob">
-						<img class="ui fluid rounded bordered image" blob-src="cam.blob">
-						<div class="left arrow" ng-show="cam.prevSnap" ng-click="cam.refresh(cam.prevSnap)">
-							<i class="icon left chevron"></i>
-						</div>
-						<div class="right arrow" ng-show="cam.nextSnap" ng-click="cam.refresh(cam.nextSnap)">
-							<i class="icon right chevron"></i>
+					<div class="wrapper slide" ng-class="{down: ui.shown.webcam}">
+						<div class="ui settings basic segment">
+							<div class="image-container" ng-if="cam.blob">
+								<img class="ui fluid rounded bordered image" blob-src="cam.blob">
+								<div class="left arrow" ng-show="cam.prevSnap" ng-click="cam.refresh(cam.prevSnap)">
+									<i class="icon left chevron"></i>
+								</div>
+								<div class="right arrow" ng-show="cam.nextSnap" ng-click="cam.refresh(cam.nextSnap)">
+									<i class="icon right chevron"></i>
+								</div>
+							</div>
+							<div ng-if="cam.blob" style="margin-bottom: 10px;">
+								<input class="datepicker" ng-model="cam.timeIndex" type="range" min="0" max="1000">
+								<div class="text-center">
+									{{ cam.timeIndex == cam.maxIndex ? 'Live' : cam.timeSlider }}
+								</div>
+							</div>
+							<div class="ui form">
+								<div class="three fields">
+									<div class="field">
+										<label>Controls</label>
+										<button class="ui icon button" ng-click="cam.move('left')">
+											<i class="left arrow icon"></i>
+										</button>
+										<button class="ui icon button" ng-click="cam.move('right')">
+											<i class="right arrow icon"></i>
+										</button>
+									</div>
+									<div class="field">
+										<label>Mode</label>
+										<select ng-model="cam.viewMode">
+											<option value="diff">Difference</option>
+											<option value="raw">Raw image</option>
+										</select>
+									</div>
+									<div class="field">
+										<label>Range</label>
+										<select ng-model="cam.range">
+											<option value="hour">Hour</option>
+											<option value="day">Day</option>
+											<option value="month">Month</option>
+											<option value="year">Year</option>
+										</select>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
-					<div>
-						<input class="datepicker" ng-model="cam.timeIndex" type="range" min="0" max="1000">
-						<div class="text-center"> {{ cam.timeSlider }}
-						</div>
-					</div>
-					<div class="ui form">
-						<div class="two fields">
+					<div class="ui settings basic segment" ng-if="app.config">
+						<div class="ui form">
 							<div class="field">
-								<label>Mode</label>
-								<select ng-model="cam.viewMode">
-										<option value="diff">Difference</option>
-										<option value="raw">Raw image</option>
-									</select>
+								<label>Host</label>
+								<input type="text" ng-model="cam.settings.host">
 							</div>
-							<div class="field">
-								<label>Range</label>
-								<select ng-model="cam.range">
-										<option value="hour">Hour</option>
-										<option value="day">Day</option>
-										<option value="month">Month</option>
-										<option value="year">Year</option>
-									</select>
+							<div class="two fields">
+								<div class="field">
+									<label>User</label>
+									<input type="text" ng-model="cam.settings.user">
+								</div>
+								<div class="field">
+									<label>Pass</label>
+									<input type="text" ng-model="cam.settings.pass">
+								</div>
 							</div>
-						</div>
-					</div>
-					<div class="ui form" ng-if="app.config">
-						<div class="two fields">
-							<div class="field">
-								<label>Threshold</label>
-								<input type="number" ng-model="data.settings.webcam.threshold">
+							<div class="two fields">
+								<div class="field">
+									<label>Threshold</label>
+									<input type="number" ng-model="cam.settings.threshold">
+								</div>
+								<div class="field">
+									<label>Interval</label>
+									<input type="text" ng-model="cam.settings.interval">
+								</div>
 							</div>
-							<div class="field">
-								<label>Interval</label>
-								<input type="number" ng-model="data.settings.webcam.interval">
+							<div class="two fields">
+								<div class="field">
+									<label>Dropbox API token</label>
+									<input type="text" ng-model="cam.settings.dropboxApi">
+								</div>
+								<div class="field">
+									<label>Base Directory</label>
+									<input type="text" ng-model="cam.settings.dropboxBase">
+								</div>
+							</div>
+							<div class="center field">
+								<button class="ui button" ng-click="cam.settings.enabled = !cam.settings.enabled">
+									{{ cam.settings.enabled ? 'Enabled' : 'Disabled' }}
+								</button>
+								<button class="ui button" ng-click="cam.update()">
+									<i class="save icon"></i>Save
+								</button>
 							</div>
 						</div>
 					</div>
 				</div>
 			</div>
 			<div class="four wide column">
-				<!-- ====== BUTTON SEGMENT ======= -->
+				<!-- ====== BUTTON SEGMENT ======= 
 				<div class="ui segment" ng-if="app.config || settings.gpio.enabled" ng-controller="GPIOController as g">
 					<div class="ui top attached label">Button</div>
 					<div class="ui center aligned basic segment">
 						<button class="massive ui button" ng-disabled="g.toggling || g.toggled" ng-class="{loading: g.toggling, green: g.toggled, red: g.error}"
 						 ng-click="g.toggle()">
 							<i class="lightning icon"></i>Toggle
-							</button>
+						</button>
 						<div class="ui error message" ng-if="g.error">
 							{{ g.error }}
 						</div>
 					</div>
 				</div>
+				-->
 				<!-- ====== INFO SEGMENT ======= -->
 				<div class="ui segment">
 					<div class="ui top attached label">Information</div>
@@ -189,10 +248,10 @@
 						<div class="eight wide column">
 							{{ perc(m.status.diskUsed/m.status.diskTotal) }}%
 						</div>
-						<div class="right aligned eight wide column">
+						<div class="right aligned eight wide column" ng-show="app.data.version">
 							<b>Version</b>
 						</div>
-						<div class="eight wide column">
+						<div class="eight wide column" ng-show="app.data.version">
 							{{ app.data.version }}
 						</div>
 						<div class="right aligned eight wide column">
@@ -223,25 +282,25 @@
 							<b>Built</b>
 						</div>
 						<div class="eight wide column">
-							<span since="app.data.upTime" ago></span>
+							<span since="app.data.buildTime" ago></span>
 						</div>
 					</div>
 				</div>
 				<!-- ====== SERVER CONFIG SEGMENT ======= -->
-				<div class="ui server segment" ng-if="app.config" ng-controller="ServerController as s">
-					<div class="ui top attached label">Server</div>
+				<div class="ui auth segment" ng-if="app.config" ng-controller="AuthController as auth">
+					<div class="ui top attached label">Authentication</div>
 					<form class="ui form">
 						<div class="field">
 							<label>Username</label>
-							<input type="text" ng-model="inputs.App.User"></input>
+							<input type="text" ng-model="auth.settings.user"></input>
 						</div>
 						<div class="field">
 							<label>Password</label>
-							<input type="password" ng-model="inputs.App.Pass"></input>
+							<input type="password" ng-model="auth.settings.pass"></input>
 						</div>
 						<div class="submit field">
 							<label></label>
-							<button class="ui tiny button" ng-click="g.toggle()">
+							<button class="ui tiny button" ng-click="auth.update()">
 								<i class="save icon"></i>Save
 							</button>
 						</div>
@@ -255,15 +314,13 @@
 	<script src="/js/vendor/fetch.js"></script>
 	<script src="/js/vendor/angular.min.js"></script>
 	<script src="/js/velox.js"></script>
-	<script>
-		window.module = angular.module("castle", []);
-	</script>
+	<script src="/js/init.js"></script>
 	<script src="/js/controller/app.js"></script>
 	<script src="/js/controller/cam.js"></script>
 	<script src="/js/controller/gpio.js"></script>
 	<script src="/js/controller/machine.js"></script>
 	<script src="/js/controller/scanner.js"></script>
-	<script src="/js/controller/server.js"></script>
+	<script src="/js/controller/auth.js"></script>
 	<script src="/js/directives.js"></script>
 	<script src="/js/services.js"></script>
 </body>

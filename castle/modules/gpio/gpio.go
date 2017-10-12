@@ -8,17 +8,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jpillora/go433"
 	goji "goji.io"
 	"goji.io/pat"
-
-	"golang.org/x/net/context"
-
-	"github.com/stianeikeland/go-rpio"
 )
 
 func New() *GPIO {
-	err := rpio.Open()
-	return &GPIO{Enabled: err == nil}
+	return &GPIO{Enabled: false}
 }
 
 type GPIO struct {
@@ -43,17 +39,15 @@ func (h *GPIO) Set(j json.RawMessage) error {
 }
 
 func (g *GPIO) RegisterRoutes(mux *goji.Mux) {
-	mux.HandleC(pat.Get("/actuate"), goji.HandlerFunc(g.actuate))
+	mux.Handle(pat.Get("/actuate"), http.HandlerFunc(g.actuate))
 }
 
-func (h *GPIO) actuate(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (h *GPIO) actuate(w http.ResponseWriter, r *http.Request) {
 	if !h.Enabled {
 		http.Error(w, "GPIO not active", 500)
 		return
 	}
-
 	q := r.URL.Query()
-
 	var err error
 	p := 17
 	if s := q.Get("p"); s != "" {
@@ -71,13 +65,16 @@ func (h *GPIO) actuate(ctx context.Context, w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
+	pin, err := go433.OpenPinOut(p)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
 	//actuate
 	go func() {
-		pin := rpio.Pin(p)
-		pin.Output()
-		pin.High()
+		pin.Write(true)
 		time.Sleep(d)
-		pin.Low()
+		pin.Write(false)
 		log.Printf("activated pin %d for %s\n", p, d)
 	}()
 	//done

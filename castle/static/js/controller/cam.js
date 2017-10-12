@@ -1,17 +1,30 @@
 module.controller("CamController", function($scope, $http) {
-  var cam = window.cam = $scope.cam = this;
+  var cam = (window.cam = $scope.cam = this);
   cam.started = false;
   cam.title = "Webcam";
   cam.range = "hour";
   cam.timestamp = "";
   cam.blob = null;
   cam.liveIndex = 0;
-  cam.timeIndex = "1000";
+  cam.maxIndex = "1000";
+  cam.timeIndex = cam.maxIndex;
   cam.viewMode = "raw";
+  cam.state = {};
 
-  var update = cam.update = function(obj) {
-    var data = angular.extend($scope.app.data.settings.webcam, obj || {});
-    $http({url: "/settings/webcam", method: "PUT", data: data}).then(
+  cam.update = function(settings) {
+    var data = angular.extend({}, cam.settings, settings || {});
+    $http({url: "m/webcam/settings", method: "PUT", data: data}).then(
+      function(resp) {
+        console.info("succeses", resp.data);
+      },
+      function(resp) {
+        console.warn(resp.data);
+      }
+    );
+  };
+
+  cam.move = function(dir) {
+    $http({url: "m/webcam/move/" + dir, method: "PUT"}).then(
       function(resp) {
         console.info("succeses", resp.data);
       },
@@ -23,9 +36,10 @@ module.controller("CamController", function($scope, $http) {
 
   //webcam enabled? start/stop
   $scope.$watch(
-    "data.webcam.settings",
-    function(settings) {
-      if (settings && settings.webcam && settings.webcam.enabled) {
+    "data.modules.webcam",
+    function(state) {
+      cam.settings = angular.copy((state || {}).settings || {});
+      if (cam.settings.enabled) {
         cam.started = true;
         refresh();
       } else {
@@ -41,65 +55,64 @@ module.controller("CamController", function($scope, $http) {
     setTimeout(refresh, 3000);
   };
 
-  var refresh = cam.refresh = function(isodate) {
+  var refresh = (cam.refresh = function(isodate) {
     clearTimeout(refresh.t);
     if (!cam.started) {
       return;
     }
     var url;
     //realtime
-    var realtime = cam.timeIndex === "1000";
+    var realtime = cam.timeIndex === cam.maxIndex;
     if (isodate) {
-      url = "webcam/snap/" + isodate;
+      url = "m/webcam/snap/" + isodate;
     } else {
-      url = "webcam/live/" + cam.liveIndex + "/" + cam.viewMode;
+      url = "m/webcam/live/" + cam.liveIndex + "/" + cam.viewMode;
     }
-    fetch(url).then(
-      function(resp) {
-        //refresh next interval
-        var interval = parseInt(resp.headers.get("Interval")) * 1000;
-        //get date
-        var ts = moment(new Date(resp.headers.get("Last-Modified")));
-        if (!ts.isValid()) {
-          cam.timestamp = "-";
+    fetch(url).then(function(resp) {
+      if (resp.status !== 200) {
+        refreshError(resp.statusText);
+        return;
+      }
+      //refresh next interval
+      var interval = parseInt(resp.headers.get("Interval-Millis"));
+      console.log("next", interval);
+      //get date
+      var ts = moment(new Date(resp.headers.get("Last-Modified")));
+      if (!ts.isValid()) {
+        cam.timestamp = "-";
+      } else {
+        var now = moment();
+        if (now.diff(ts, "second") == 0) {
+          cam.timestamp = now.diff(ts) + " ms ago";
+        } else if (now.diff(ts, "minute") == 0) {
+          var s = now.diff(ts, "second");
+          cam.timestamp = s + " second" + (s == 1 ? "" : "s") + " ago";
+        } else if (now.diff(ts, "hour") == 0) {
+          var m = now.diff(ts, "minute");
+          cam.timestamp = m + " minute" + (m == 1 ? "" : "s") + " ago";
         } else {
-          var now = moment();
-          if (now.diff(ts, "second") == 0) {
-            cam.timestamp = now.diff(ts) + " ms ago";
-          } else if (now.diff(ts, "minute") == 0) {
-            var s = now.diff(ts, "second");
-            cam.timestamp = s + " second" + (s == 1 ? "" : "s") + " ago";
-          } else if (now.diff(ts, "hour") == 0) {
-            var m = now.diff(ts, "minute");
-            cam.timestamp = m + " minute" + (m == 1 ? "" : "s") + " ago";
-          } else {
-            cam.timestamp = ts.format("h:mma");
-            if (now.diff(ts, "day") > 0) {
-              cam.timestamp += ts.format(" DD/MM/YYYY");
-            }
+          cam.timestamp = ts.format("h:mma");
+          if (now.diff(ts, "day") > 0) {
+            cam.timestamp += ts.format(" DD/MM/YYYY");
           }
         }
-        //refresh next interval
-        cam.nextSnap = resp.headers.get("Next");
-        cam.prevSnap = resp.headers.get("Prev");
-        //load data
-        resp.blob().then(
-          function(blob) {
-            cam.blob = blob;
-            $scope.$apply();
-            if (!isodate && !isNaN(interval)) {
-              clearTimeout(refresh.t);
-              refresh.t = setTimeout(refresh, interval);
-            }
-          },
-          refreshError
-        );
-      },
-      refreshError
-    );
-  };
+      }
+      //refresh next interval
+      cam.nextSnap = resp.headers.get("Next");
+      cam.prevSnap = resp.headers.get("Prev");
+      //load data
+      resp.blob().then(function(blob) {
+        cam.blob = blob;
+        $scope.$apply();
+        if (!isodate && interval > 0) {
+          clearTimeout(refresh.t);
+          refresh.t = setTimeout(refresh, interval);
+        }
+      }, refreshError);
+    }, refreshError);
+  });
   //refresh on slider change
-  var rangeChange = cam.rangeChange = function() {
+  var rangeChange = (cam.rangeChange = function() {
     var isodate = null;
     if (cam.timeIndex === "1000") {
       cam.timeSlider = null;
@@ -131,7 +144,7 @@ module.controller("CamController", function($scope, $http) {
     }
     clearTimeout(rangeChange.t);
     rangeChange.t = setTimeout(refresh.bind(null, isodate), 250);
-  };
+  });
   $scope.$watch("cam.range", rangeChange);
   $scope.$watch("cam.timeIndex", rangeChange);
 });

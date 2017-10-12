@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"log"
 	"time"
 
 	"image/color"
-	"image/jpeg"
+	_ "image/jpeg" //needed for jpeg encoding
 )
 
 var (
@@ -19,18 +18,21 @@ var (
 )
 
 type snap struct {
-	id       []byte
-	t        time.Time
-	prev     *snap
-	raw      []byte
-	img      image.Image
-	diff     []byte
+	//image
+	id  []byte
+	t   time.Time
+	raw []byte
+	img image.Image
+	//diff
+	diffed   bool
 	pdiffSum int
 	pdiffNum int
-	stored   bool
+	// diff     []byte //debug image
+	//store
+	stored bool
 }
 
-func newSnap(raw []byte, threshold int, last *snap) (*snap, error) {
+func newSnap(raw []byte) (*snap, error) {
 	s := &snap{}
 	s.t = time.Now()
 	s.id = toID(s.t)
@@ -40,38 +42,41 @@ func newSnap(raw []byte, threshold int, last *snap) (*snap, error) {
 		return nil, fmt.Errorf("jpg: %s", err)
 	}
 	s.img = img
+	return s, nil
+}
+
+func (s *snap) computeDiff(threshold int, other *snap) int {
+	if s.diffed {
+		return s.pdiffNum
+	}
+	s.diffed = true
 	b := s.img.Bounds()
-	if last != nil && b.Eq(last.img.Bounds()) {
-		d := image.NewNRGBA(b)
+	if other != nil && b.Eq(other.img.Bounds()) {
+		//NOTE: diff image is for debugging
+		// d := image.NewNRGBA(b)
 		for y := b.Min.Y; y < b.Max.Y; y++ {
 			for x := b.Min.X; x < b.Max.X; x++ {
 				r1, g1, b1, _ := s.img.At(x, y).RGBA()
-				r2, g2, b2, _ := last.img.At(x, y).RGBA()
-
+				r2, g2, b2, _ := other.img.At(x, y).RGBA()
 				pdiff := abs(int(r2)-int(r1)) +
 					abs(int(g2)-int(g1)) +
 					abs(int(b2)-int(b1))
-
 				s.pdiffSum += pdiff
 				if pdiff > threshold {
-					if r1+g1+b1 > r2+g2+b2 {
-						d.Set(x, y, pink)
-					} else {
-						d.Set(x, y, cyan)
-					}
+					// if r1+g1+b1 > r2+g2+b2 {
+					// 	d.Set(x, y, pink)
+					// } else {
+					// 	d.Set(x, y, cyan)
+					// }
 					s.pdiffNum++
-				} else {
+				} /* else {
 					d.Set(x, y, black)
-				}
+				}*/
 			}
 		}
-		buff := bytes.Buffer{}
-		if err := jpeg.Encode(&buff, d, nil); err != nil {
-			log.Printf("jpgencode: %s", err)
-		} else {
-			s.diff = buff.Bytes()
-			// log.Printf("sum: %d (num: %d, avg: %f)", s.pdiffSum, s.pdiffNum, float64(s.pdiffSum)/float64(b.Max.X*b.Max.Y))
-		}
+		// buff := bytes.Buffer{}
+		// jpeg.Encode(&buff, d, nil)
+		// s.diff = buff.Bytes()
 	}
-	return s, nil
+	return s.pdiffNum
 }
