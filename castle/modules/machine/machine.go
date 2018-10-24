@@ -25,7 +25,7 @@ type Machine struct {
 	settings struct {
 		Interval time.Duration
 	}
-	lastCPUStat cpu.CPUTimesStat
+	lastCPUStat cpu.TimesStat
 	status      struct {
 		CPU         float64 `json:"cpu"`
 		DiskUsed    int64   `json:"diskUsed"`
@@ -57,12 +57,12 @@ func (m *Machine) check() {
 func (m *Machine) loadStats(first bool) {
 	//count cpu cycles between last count
 	if first {
-		if stats, err := cpu.CPUTimes(false); err == nil {
+		if stats, err := cpu.Times(false); err == nil {
 			m.lastCPUStat = stats[0]
 			time.Sleep(2 * time.Second)
 		}
 	}
-	if stats, err := cpu.CPUTimes(false); err == nil {
+	if stats, err := cpu.Times(false); err == nil {
 		stat := stats[0]
 		total := totalCPUTime(stat)
 		last := m.lastCPUStat
@@ -78,7 +78,7 @@ func (m *Machine) loadStats(first bool) {
 		m.lastCPUStat = stat
 	}
 	//count disk usage
-	if stat, err := disk.DiskUsage("/"); err == nil {
+	if stat, err := disk.Usage("/"); err == nil {
 		m.status.DiskUsed = int64(stat.Used)
 		m.status.DiskTotal = int64(stat.Total)
 	}
@@ -123,7 +123,7 @@ func (m *Machine) Set(j json.RawMessage) error {
 	return nil
 }
 
-func totalCPUTime(t cpu.CPUTimesStat) float64 {
+func totalCPUTime(t cpu.TimesStat) float64 {
 	total := t.User + t.System + t.Nice + t.Iowait + t.Irq + t.Softirq + t.Steal + t.Guest + t.GuestNice + t.Idle
 	return total
 }

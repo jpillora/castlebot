@@ -65,7 +65,7 @@ func Run(buildtime string, config Config, state overseer.State) error {
 	}
 	if n, err := strconv.ParseInt(buildtime, 10, 64); err == nil {
 		data.BuildTime = time.Unix(n, 0)
-		log.Println(data.BuildTime)
+		log.Printf("build time: %s", data.BuildTime)
 	}
 	//root router
 	router := goji.NewMux()

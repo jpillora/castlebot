@@ -49,6 +49,7 @@ type Webcam struct {
 	}
 	settings struct {
 		Enabled     bool          `json:"enabled"`
+		StoreLocal  bool          `json:"storeLocal"`
 		StoredBytes int64         `json:"storedBytes"`
 		Host        string        `json:"host"`
 		User        string        `json:"user"`
@@ -150,14 +151,16 @@ func (w *Webcam) store(s *snap) {
 	}
 	s.stored = true
 	//store locally to database
-	if err := w.db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(bucketName)
-		if err != nil {
-			return err
+	if w.settings.StoreLocal {
+		if err := w.db.Update(func(tx *bolt.Tx) error {
+			b, err := tx.CreateBucketIfNotExists(bucketName)
+			if err != nil {
+				return err
+			}
+			return b.Put([]byte(s.id), s.raw)
+		}); err != nil {
+			log.Printf("[webcam] db write failed: %s", err)
 		}
-		return b.Put([]byte(s.id), s.raw)
-	}); err != nil {
-		log.Printf("[webcam] db write failed: %s", err)
 	}
 	//store to dropbox (if connected)
 	w.dropenque(s)

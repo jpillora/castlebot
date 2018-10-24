@@ -21,15 +21,20 @@ var config = castle.Config{
 
 //BuildTime will be set by the compiler
 var (
-	BuildTime = strconv.FormatInt(time.Now().Unix(), 10)
+	BuildTime = ""
 )
 
 func main() {
 	overseer.SanityCheck()
+	//convert epoch to iso string
+	bt := BuildTime
+	if n, err := strconv.ParseInt(BuildTime, 10, 64); err == nil {
+		bt = time.Unix(n, 0).Format(time.RFC3339)
+	}
 	//parse config
 	opts.New(&config).
 		Name("castle").
-		Version(BuildTime).
+		Version(bt).
 		PkgRepo().
 		Parse()
 	//no overseer

@@ -13,7 +13,7 @@ module.controller("CamController", function($scope, $http) {
 
   cam.update = function(settings) {
     var data = angular.extend({}, cam.settings, settings || {});
-    $http({url: "m/webcam/settings", method: "PUT", data: data}).then(
+    $http({ url: "m/webcam/settings", method: "PUT", data: data }).then(
       function(resp) {
         console.info("succeses", resp.data);
       },
@@ -24,7 +24,7 @@ module.controller("CamController", function($scope, $http) {
   };
 
   cam.move = function(dir) {
-    $http({url: "m/webcam/move/" + dir, method: "PUT"}).then(
+    $http({ url: "m/webcam/move/" + dir, method: "PUT" }).then(
       function(resp) {
         console.info("succeses", resp.data);
       },
@@ -75,7 +75,6 @@ module.controller("CamController", function($scope, $http) {
       }
       //refresh next interval
       var interval = parseInt(resp.headers.get("Interval-Millis"));
-      console.log("next", interval);
       //get date
       var ts = moment(new Date(resp.headers.get("Last-Modified")));
       if (!ts.isValid()) {

@@ -44,7 +44,7 @@ func (w *Webcam) Set(j json.RawMessage) error {
 		w.settings.DropboxBase = "/"
 	}
 	if w.drop.queue != nil {
-		close(w.drop.queue) //kill old queue
+		// close(w.drop.queue) //kill old queue
 		w.drop.queue = nil
 	}
 	if api := w.settings.DropboxAPI; api != "" {
