@@ -134,13 +134,10 @@
 							</div>
 							<div class="ui form">
 								<div class="three fields">
-									<div class="field">
+									<div class="arrow field">
 										<label>Controls</label>
-										<button class="ui icon button" ng-click="cam.move('left')">
-											<i class="left arrow icon"></i>
-										</button>
-										<button class="ui icon button" ng-click="cam.move('right')">
-											<i class="right arrow icon"></i>
+										<button ng-repeat="dir in ['left','up','down','right']" class="ui tiny icon button" ng-click="cam.move(dir)">
+											<i class="{{ dir }} arrow icon"></i>
 										</button>
 									</div>
 									<div class="field">
@@ -191,17 +188,29 @@
 							</div>
 							<div class="two fields">
 								<div class="field">
+									<label>Disk force-save</label>
+									<button class="ui button" ng-class="{ blue:cam.settings.diskForce }" ng-click="cam.settings.diskForce = !cam.settings.diskForce">
+										{{ cam.settings.diskForce ? 'On' : 'Off' }}
+									</button>
+								</div>
+								<div class="field">
+									<label>Disk Base</label>
+									<input type="text" ng-model="cam.settings.diskBase">
+								</div>
+							</div>
+							<div class="two fields">
+								<div class="field">
 									<label>Dropbox API token</label>
 									<input type="text" ng-model="cam.settings.dropboxApi">
 								</div>
 								<div class="field">
-									<label>Base Directory</label>
+									<label>Dropbox Base</label>
 									<input type="text" ng-model="cam.settings.dropboxBase">
 								</div>
 							</div>
 							<div class="center field">
-								<button class="ui button" ng-click="cam.settings.enabled = !cam.settings.enabled">
-									{{ cam.settings.enabled ? 'Enabled' : 'Disabled' }}
+								<button class="ui button" ng-class="{ blue:cam.settings.enabled }" ng-click="cam.settings.enabled = !cam.settings.enabled">
+									{{ cam.settings.enabled ? 'On' : 'Off' }}
 								</button>
 								<button class="ui button" ng-click="cam.update()">
 									<i class="save icon"></i>Save

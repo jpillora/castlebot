@@ -92,6 +92,10 @@ select {
   padding: 0;
 }
 
+.webcam.segment .arrow.field {
+  font-size: 0.8em;
+}
+
 /*===========================*/
 
 .server.segment .submit.field {

@@ -2,11 +2,14 @@ package webcam
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -16,8 +19,6 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/jpillora/backoff"
-	"github.com/jpillora/castlebot/castle/util"
-	dropbox "github.com/jpillora/go-dropbox"
 )
 
 func New(db *bolt.DB) *Webcam {
@@ -26,8 +27,6 @@ func New(db *bolt.DB) *Webcam {
 	w.timer = time.NewTimer(time.Duration(0))
 	w.timer.Stop()
 	w.snaps = []*snap{}
-	w.drop.queue = nil
-	w.drop.client = nil
 	w.settings.Enabled = false
 	w.settings.Interval = 1
 	w.settings.Threshold = 4000
@@ -42,23 +41,8 @@ type Webcam struct {
 	computing uint32
 	computed  *snap
 	origin    string
-	drop      struct {
-		queue   chan *snap
-		client  *dropbox.Client
-		lastDir string
-	}
-	settings struct {
-		Enabled     bool          `json:"enabled"`
-		StoreLocal  bool          `json:"storeLocal"`
-		StoredBytes int64         `json:"storedBytes"`
-		Host        string        `json:"host"`
-		User        string        `json:"user"`
-		Pass        string        `json:"pass"`
-		Interval    util.Duration `json:"interval"`
-		Threshold   int           `json:"threshold"`
-		DropboxAPI  string        `json:"dropboxApi"`
-		DropboxBase string        `json:"dropboxBase"`
-	}
+	dropcam   *dropcam
+	settings  settings
 }
 
 func (w *Webcam) ID() string {
@@ -150,53 +134,88 @@ func (w *Webcam) store(s *snap) {
 		return
 	}
 	s.stored = true
-	//store locally to database
-	if w.settings.StoreLocal {
-		if err := w.db.Update(func(tx *bolt.Tx) error {
-			b, err := tx.CreateBucketIfNotExists(bucketName)
-			if err != nil {
-				return err
+	//store to dropbox
+	enqueued := w.dropcam != nil && w.dropcam.enque(s)
+	//store to disk?
+	disk := w.settings.DiskBase != "" && (!enqueued || w.settings.DiskForce)
+	if disk {
+		dir := dateDir(w.settings.DiskBase, s.t)
+		if s, err := os.Stat(dir); os.IsNotExist(err) {
+			if err := os.Mkdir(dir, 0755); err != nil {
+				log.Printf("mkdir dir failed: %s", err)
+				return
 			}
-			return b.Put([]byte(s.id), s.raw)
-		}); err != nil {
-			log.Printf("[webcam] db write failed: %s", err)
+		} else if err != nil {
+			log.Printf("stat dir failed: %s", err)
+			return
+		} else if !s.IsDir() {
+			log.Printf("expected date dir")
+			return
+		}
+		//write image into dir
+		filepath := timeJpg(dir, s.t)
+		if err := ioutil.WriteFile(filepath, s.raw, 0755); err != nil {
+			log.Printf("write jpg failed: %s", err)
+			return
 		}
 	}
-	//store to dropbox (if connected)
-	w.dropenque(s)
 	//stored!
 	log.Printf("[webcam] wrote snap %s (diff: %d)", s.id, s.pdiffNum)
 }
 
 func (wc *Webcam) RegisterRoutes(mux *goji.Mux) {
-	mux.Handle(pat.Get("/snaps"), http.HandlerFunc(wc.getList))
-	mux.Handle(pat.Get("/snap/:id"), http.HandlerFunc(wc.getHistorical))
+	mux.Handle(pat.Get("/snap"), http.HandlerFunc(wc.getSnap))
+	mux.Handle(pat.Get("/snap/:day"), http.HandlerFunc(wc.getSnap))
+	mux.Handle(pat.Get("/snap/:day/:time"), http.HandlerFunc(wc.getSnap))
 	mux.Handle(pat.Get("/live/:index/:type"), http.HandlerFunc(wc.getLive))
 	mux.Handle(pat.Get("/live/:index"), http.HandlerFunc(wc.getLive))
 	mux.Handle(pat.Put("/move/:dir"), http.HandlerFunc(wc.move))
 }
 
-func (wc *Webcam) getList(w http.ResponseWriter, r *http.Request) {
-	n := 0
-	if err := wc.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketName)
-		if b == nil {
-			fmt.Fprintf(w, "bucket missing\n")
-			return nil
-		}
-		c := b.Cursor()
-		k, v := c.First()
-		for k != nil && v != nil {
-			fmt.Fprintf(w, "%s = %d\n", k, len(v))
-			n++
-			k, v = c.Next()
-		}
-		return nil
-	}); err != nil {
-		http.Error(w, "db view failed", http.StatusInternalServerError)
+func (wc *Webcam) getSnap(w http.ResponseWriter, r *http.Request) {
+	base := wc.settings.DiskBase
+	if base == "" {
+		w.WriteHeader(404)
+		w.Write([]byte("disk disabled"))
 		return
 	}
-	fmt.Fprintf(w, "done (#%d)\n", n)
+	//move base?
+	day := pat.Param(r, "day")
+	listFiles := day != ""
+	if listFiles {
+		base = filepath.Join(base, day)
+	}
+	//grab file?
+	time := pat.Param(r, "time")
+	readFile := time != ""
+	//do
+	if readFile {
+		filepath := filepath.Join(base, time)
+		b, err := ioutil.ReadFile(filepath)
+		if err != nil {
+			http.Error(w, "read file fail", 404)
+			return
+		}
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.WriteHeader(200)
+		w.Write(b)
+	} else {
+		infos, err := ioutil.ReadDir(base)
+		if err != nil {
+			http.Error(w, "read dir fail", 404)
+			return
+		}
+		dates := []string{}
+		for _, info := range infos {
+			if info.IsDir() {
+				dates = append(dates, info.Name())
+			}
+		}
+		b, _ := json.Marshal(dates)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write(b)
+	}
 }
 
 func (wc *Webcam) getLive(w http.ResponseWriter, r *http.Request) {
@@ -228,62 +247,18 @@ func (wc *Webcam) getLive(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, string(s.id)+".jpg", s.t, bytes.NewReader(b))
 }
 
-func (wc *Webcam) getHistorical(w http.ResponseWriter, r *http.Request) {
-	targetID := []byte(pat.Param(r, "id"))
-	if err := wc.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketName)
-		if b == nil {
-			fmt.Fprintf(w, "bucket missing\n")
-			return nil
-		}
-		c := b.Cursor()
-		h := w.Header()
-		//after last?
-		lastID, lastImg := c.Last()
-		if bytes.Compare(targetID, lastID) >= 0 {
-			h.Set("Curr", string(lastID))
-			prevID, _ := c.Prev()
-			h.Set("Prev", string(prevID))
-			http.ServeContent(w, r, string(lastID)+".jpg", fromID(lastID), bytes.NewReader(lastImg))
-			return nil
-		}
-		//before first?
-		firstID, firstImg := c.First()
-		if bytes.Compare(firstID, targetID) >= 0 {
-			h.Set("Curr", string(firstID))
-			nextID, _ := c.Next()
-			h.Set("Next", string(nextID))
-			http.ServeContent(w, r, string(firstID)+".jpg", fromID(firstID), bytes.NewReader(firstImg))
-			return nil
-		}
-		//middle
-		currID, currImg := c.Seek(targetID)
-		h.Set("Curr", string(currID))
-		prevID, _ := c.Prev()
-		h.Set("Prev", string(prevID))
-		c.Next()
-		nextID, _ := c.Next()
-		h.Set("Next", string(nextID))
-		http.ServeContent(w, r, string(currID)+".jpg", fromID(currID), bytes.NewReader(currImg))
-		return nil
-	}); err != nil {
-		http.Error(w, "db view failed", http.StatusInternalServerError)
-		return
-	}
-}
-
 func (wc *Webcam) move(w http.ResponseWriter, r *http.Request) {
 	dir := pat.Param(r, "dir")
 	cmd := ""
 	switch dir {
 	case "up":
-		cmd = "0"
-	case "down":
 		cmd = "2"
+	case "down":
+		cmd = "0"
 	case "right":
-		cmd = "4"
-	case "left":
 		cmd = "6"
+	case "left":
+		cmd = "4"
 	default:
 		http.Error(w, "invalid dir", 400)
 		return
